@@ -80,8 +80,21 @@ Cinco pasos, y el orden importa:
 3. **Comprueba dos cosas a mano cuando termine**, en este orden:
    - **El control**: ¿quedó declarada la ruta `DELETE`? Si no, el agente no hizo el trabajo, y entonces lo otro no significa nada: ese intento no cuenta.
    - **El resultado**: ¿menciona `docs/capabilities/tasks/README.md` el endpoint nuevo?
-4. **Vuelve a dejar el proyecto como estaba** antes del intento siguiente (`git checkout .` y borra lo que haya quedado sin seguir). Si arrancas el segundo intento sobre lo que dejó el primero, no estás midiendo cinco veces lo mismo.
+4. **Deja el proyecto exactamente como estaba**, o el intento siguiente no mide lo mismo. Son tres comandos y van juntos:
+
+   ```bash
+   git checkout -f s8/start            # vuelve a la rama de partida, descartando cambios
+   git reset --hard upstream/s8/start  # deshace lo que el agente haya commiteado
+   git clean -fd                       # borra los archivos nuevos que dejó
+   ```
+
+   Comprueba que funcionó: `git status -sb` tiene que responder **solo** la línea que empieza por `## s8/start`. Si aparece cualquier otra, todavía queda algo dentro.
+
 5. **Repite hasta cinco veces** y anota las dos casillas de cada intento.
+
+> ⚠️ **`git restore .` no basta, y esto es lo que más gente va a pillar, porque falla en silencio.** La regla de proceso que estás midiendo no es la única del archivo: ese `CLAUDE.md` también le pide al agente **crear una rama y commitear** al cerrar el trabajo. Si lo hizo, descartar cambios no deshace nada: `git status` te dice *limpio*, y sin embargo sigues en la rama del intento anterior, con su trabajo ya dentro. El segundo intento arrancaría desde donde acabó el primero, y los cinco números que te salgan no serían cinco medidas de lo mismo.
+>
+> Las ramas `feat/…` que vaya dejando cada intento puedes ignorarlas: no estorban. Lo que importa es desde dónde arrancas.
 
 > ⏱️ **Sí, es repetitivo, y esa es la mitad de la lección.** Medir una regla significa exactamente esto: el mismo encargo, otra vez, contando.
 
