@@ -2,7 +2,18 @@
 
 Proyecto de práctica del curso: gestión de tareas en equipo. API en **AdonisJS 7 + SQLite** (`backend/`) y frontend en **React 19 + Vite** (`frontend/`).
 
-Este es el sistema sobre el que trabajas en el Módulo 5. Léelo entero antes de empezar: además de cómo levantarlo, aquí está **el ejercicio y cómo se entrega**.
+Este es el sistema sobre el que trabajas en el Módulo 8. Léelo entero antes de empezar: además de cómo levantarlo, aquí está **el ejercicio y cómo se entrega**.
+
+## Qué necesitas, y cómo compruebas que lo tienes
+
+Una línea por requisito, con el comando que lo verifica y el síntoma de tenerlo mal.
+
+- **Node 24** (la versión con soporte de largo plazo): `node -v` responde `v24.x`. Con Node 20, `make setup` muere con `ERR_UNKNOWN_FILE_EXTENSION ".ts"`; con la 22 arranca entre decenas de avisos `EBADENGINE`.
+- **make**: `make --version`. Si falta, verás `command not found: make`.
+- **git**: `git --version`. Si falta, verás `command not found: git`.
+- **Claude Code 2.1.269 o posterior**: `claude --version`. En versiones anteriores, el comando que mide responde *"currently in early access"* y no ejecuta nada. Se actualiza con `claude update`.
+
+**Dónde funciona esto:** macOS y Linux tal cual. **En Windows, dentro del Subsistema de Windows para Linux (WSL, por sus siglas en inglés)**, y con **todo** hecho dentro: el clon, Node y `make`. Lo que instales en Windows no existe dentro de WSL. No sirve PowerShell, y el motivo se puede comprobar abriendo el `Makefile` de la raíz: sus atajos usan `cp`, `test` y `rm`, que son de shell de macOS y Linux.
 
 ## Arrancarlo
 
@@ -10,28 +21,19 @@ No hay `package.json` en la raíz. Los comandos de `npm` se ejecutan dentro de `
 
 ```bash
 make setup   # solo la primera vez: instala deps, crea los .env, genera APP_KEY y migra
-make start   # levanta backend (:3333) y frontend (:5173) a la vez; Ctrl-C para los dos
-make help    # lista todos los targets
 ```
 
-- Backend en `http://localhost:3333`.
-- Frontend en `http://localhost:5173`. Apunta al backend por defecto; para cambiarlo, ajusta `VITE_API_URL` en `frontend/.env`.
-
-La suite de tests vive en el backend y no tiene atajo en el `Makefile`:
+**Comprueba que vive antes de seguir**, o vas a depurar la medición cuando lo que falla es el proyecto:
 
 ```bash
-(cd backend && npm test)
+cd backend && npm test    # tiene que terminar en verde
 ```
-
-Ejecútala una vez antes de empezar. Es la mejor comprobación de que el entorno está bien montado.
-
-> `make` no viene de serie en Windows sin WSL, y estas recetas usan sintaxis POSIX. Desde WSL, clona dentro del sistema de ficheros de Linux (`~/…`) y no en `/mnt/c`, o `npm install` irá muy lento.
 
 ## La capa de agente
 
 Vive en la raíz y es **el material del ejercicio**, no un accesorio:
 
-- [`CLAUDE.md`](CLAUDE.md), con la arquitectura del proyecto y, al final, la sección **Reglas de proceso**: lo que hay que hacer antes de tocar código, cuándo se commitea y qué va al cerrar el trabajo.
+- [`CLAUDE.md`](CLAUDE.md), con la arquitectura del proyecto y, al final, la sección **Reglas de proceso**: lo que hay que hacer antes de tocar código, cuándo se commitea y qué va al cerrar el trabajo. **Es el archivo que hoy está en el banquillo.**
 - [`AGENTS.md`](AGENTS.md), el mismo contenido para agentes que leen ese archivo.
 - `.claude/`, con los subagentes y las skills del proyecto.
 
@@ -39,81 +41,88 @@ Vive en la raíz y es **el material del ejercicio**, no un accesorio:
 
 # El ejercicio
 
-**Se hace antes del directo.** Son unos 45 minutos y hay que ponerles un reloj.
+**Se hace antes del directo.** Son unos **45 minutos** y hay que ponerles un reloj.
+
+Vas a medir, sobre este proyecto, si una regla que lleva meses escrita en el archivo de instrucciones del agente se cumple de verdad. Es el mismo encargo que se resuelve en el directo, con la misma regla y el mismo archivo de salida. Lo que pones tú son los prompts.
+
+> 🚨 **Ve guardando cada prompt tal cual lo lanzas**, desde el primero. Al final se entregan, y reconstruirlos de memoria no vale: lo que se revisa es cómo lo pediste, no solo qué salió.
 
 ## Cómo funciona este módulo
 
 Tres momentos, y conviene que los sepas antes de empezar:
 
 1. **Lo intentas tú**, aquí, sobre este proyecto. Entregas lo que te salga, con lo que tenga.
-2. **Lo ves resuelto en el directo.** El mentor hace esta misma auditoría sobre este mismo proyecto. Si no te salió, ahí ves que se puede y cómo.
+2. **Lo ves resuelto en el directo.** El mentor hace esta misma medición sobre este mismo proyecto. Si no te salió, ahí ves que se puede y cómo.
 3. **Lo replicas después**, con los prompts del mentor, que te llegan por escrito.
 
 Por eso la entrega a medias no es un problema: **el paso 1 no se puntúa por completarlo**. Y por eso conviene mirar el directo sin teclear, porque lo vas a repetir con calma luego.
 
-> ⚠️ **En el paso 3 no esperes salidas idénticas.** El agente no es determinista: con el mismo prompt y el mismo repositorio cambian la redacción, el orden de las filas y hasta cuántas devuelve. Lo que se repite es **la forma**, no el texto.
+> ⚠️ **La inteligencia artificial no es determinista, y aquí eso no es un aviso legal: es el objeto de estudio.** Si repites el encargo y sale distinto, no lo has hecho mal. Es exactamente lo que vienes a medir. Y cuando repliques este recorrido con los prompts del mentor, tampoco te van a salir sus mismas palabras: lo que se repite es la forma del recorrido, nunca el texto.
 
-## Antes de lanzar nada: apunta tu apuesta
+> 💳 **Esto consume tu plan, y conviene saberlo antes de empezar.** Cada ensayo que lances es **una sesión de agente completa** contra tu cuenta de Claude. El ejercicio está dimensionado para que salgan **unos seis ensayos en total**, que es poco, y aun así merece que lo sepas antes que después. Dos costumbres que lo mantienen barato y que vas a usar siempre: **fija el modelo pequeño** al lanzar la medición, y **no repitas una tanda "por si acaso"** sin haber leído la anterior.
 
-Abre `CLAUDE.md`, busca la sección **Reglas de proceso** y, sin comprobar nada todavía, marca cuáles crees que se están cumpliendo. Una palabra por regla vale: *sí*, *no*, *ni idea*.
+## Parte A: la medición
 
-Son treinta segundos y es la mitad del ejercicio. Sin esa apuesta escrita antes, cuando salga el resultado te va a parecer obvio, y no lo era.
+La regla que vas a medir está en `CLAUDE.md`, en su sección de reglas de proceso, y dice literalmente esto:
 
-## Parte A: la auditoría, con reloj
+> *"Un cambio que toque rutas, controladores, validadores o transformers de una capability se cierra en el mismo commit con el documento OpenAPI y el README de esa capability al día."*
 
-Con un agente, contrasta esas reglas contra **los últimos 15 commits de este repositorio y el estado actual del árbol**, y deja el resultado escrito en `docs/auditoria/<tus-iniciales>.md`, no en el chat. El directorio se crea con tu archivo.
+Lo que hay que averiguar es **en qué proporción de los intentos se cumple la parte del README**, con este encargo y no otro:
 
-**El formato no es negociable**: una fila por regla, con estas cinco casillas.
+> **"Añade a la capability `tasks` el endpoint `DELETE /api/v1/tasks/:id`, que borra una tarea y devuelve `204` sin cuerpo. Impleméntalo en el controlador que ya existe y declara su ruta junto a las demás de `tasks`."**
 
-1. **Qué pide la regla.** Una frase, con tus palabras. Si necesitas tres, es que ahí hay dos reglas metidas en una.
-2. **Qué se miró para comprobarlo.** El comando concreto, o el archivo. Sin esta casilla la fila no se escribe: es lo único que separa una auditoría de una opinión.
-3. **Veredicto**, y solo hay tres: **se cumple**, **no se cumple**, o **no se puede comprobar con lo que hay**.
-4. **La evidencia**, en una línea. Si el veredicto es *no se cumple*, el sitio donde se rompió. Si es *no se puede comprobar*, qué falta para poder comprobarla.
-5. **Qué harías con ella.** Una palabra: *dejarla*, *borrarla* o *bajarla* a algo que se ejecute solo.
+Cinco pasos, y el orden importa:
 
-> ⚠️ **Esto es una auditoría, no un arreglo.** Dile al agente explícitamente que no cambie ningún archivo. Sin esa restricción se pone a corregir lo que encuentra, y entonces ya no puedes saber qué había antes: el propio arreglo borra la evidencia.
+1. **Apunta tu apuesta antes de medir nada.** ¿Cuántas veces de cinco crees que el README de la capability va a quedar al día? Escríbela; es media línea y es lo que hace que el resultado te diga algo.
+2. **Prepara el encargo como un caso**, con el proyecto como punto de partida. La suite que se usa en el directo la tienes en el material del módulo: cópiala dentro del proyecto y lánzala desde su raíz.
+3. **Escribe la comprobación del resultado**: el README de la capability `tasks` tiene que mencionar el endpoint nuevo. Es un patrón sobre un archivo, no hace falta nada más.
+4. **Escribe también la comprobación de control**: que la ruta quedó declarada. Sirve para saber si el agente hizo el trabajo, porque si no lo hizo, lo otro no significa nada.
+5. **Lánzalo cinco veces** y anota el resultado de las dos comprobaciones.
 
-> ⚠️ **Cuando suene el reloj, para. Aunque esté a medias.** Una fila con dos casillas rellenas y tres en blanco **es información**: dice hasta dónde llegaste. Una fila completada de memoria diez minutos después es ruido con formato, y encima es indistinguible de la buena.
-
-**El resultado no lo controlas tú, lo produce el historial.** Puede salir que varias reglas se incumplen, que la mayoría no se pueden comprobar, o que se cumplen todas. Los tres resultados sirven y ninguno es un fallo tuyo.
+> ⚠️ **Cuando suene el reloj, para. Aunque esté a medias.** Tres ensayos leídos valen más que cinco a medio anotar, y decir cuántos hiciste es parte de la respuesta.
 
 ## Parte B: las tres líneas
 
-Debajo de la tabla, en el mismo archivo. **Esta parte no se puede fallar**, y es la que hay que traer sí o sí.
+En el mismo archivo, debajo de la medición. **Esta parte no se puede fallar**, y es la que hay que traer sí o sí: se responde igual de bien si la medición te salió redonda que si se te atascó a la mitad.
 
-1. **La regla sobre la que te equivocaste.** Compara tu apuesta con el veredicto y escribe la que más se separó. Si acertaste todas, escríbelo tal cual y añade en qué te apoyabas para acertar.
-2. **La regla que no se puede comprobar con lo que hay**, y en una frase qué tendría que cambiar para que dejara rastro.
-3. **La regla que borrarías, y por qué.** La que se cumple sola porque algo ya lo impide, o la que no se cumple nunca y a nadie le ha importado.
+1. **Tu apuesta y el resultado.** Si no llegaste a las cinco ejecuciones, di cuántas hiciste.
+2. **Qué harías con ese número**: borrar la regla, reescribirla, o convertirla en algo que se ejecute solo. Y por qué.
+3. **Una cosa que tu medición no está midiendo.** Siempre hay una, y detectarla vale más que el propio número.
+
+**El archivo de salida es `docs/evals/<tus-iniciales>.md`**, dentro del proyecto, con la parte A y la parte B. El directorio se crea con tu archivo.
 
 ---
 
 # Cómo se entrega
 
-**Es un pull request desde tu fork.** Cinco pasos.
+**Es un pull request (PR, por sus siglas en inglés) desde tu fork.** Cinco pasos.
 
 ### 1. Forkea este repositorio
 
-Con el botón **Fork** de arriba. Sobre un clon directo no tienes permiso de escritura, y aquí vas a crear una rama y commitear.
+Con el botón **Fork** de arriba. 🚨 **DESMARCA la casilla que dice copiar solo la rama por defecto**: viene marcada. Sobre un clon directo no tienes permiso de escritura, y aquí vas a crear una rama y commitear.
 
 ```bash
 git clone git@github.com:<tu-usuario>/flowsync-ai4devs.git
 cd flowsync-ai4devs
 git remote add upstream git@github.com:LIDR-academy/flowsync-ai4devs.git
 git fetch upstream
-git checkout -b s5/start upstream/s5/start
+git checkout -b s8/start upstream/s8/start
+make setup
 ```
+
+> 📌 La rama de partida se trae de `upstream`, no de tu fork: un fork es una foto del momento, y las ramas publicadas después no están ahí.
 
 > 📌 Si te sale `Permission denied (publickey)`, es SSH y no el fork. La guía oficial está en `docs.github.com/es/authentication/connecting-to-github-with-ssh`.
 
 ### 2. Crea tu rama
 
 ```bash
-git checkout -b auditoria-<tus-iniciales>
+git checkout -b evals-<tus-iniciales>
 ```
 
 ### 3. Haz el ejercicio
 
-El archivo de la auditoría va en `docs/auditoria/`, con la tabla de la Parte A y las tres líneas de la Parte B.
+El archivo de la medición va en `docs/evals/`, con la Parte A y las tres líneas de la Parte B.
 
 ### 4. Rellena `prompts.md`
 
@@ -124,9 +133,9 @@ Está en la raíz, con la plantilla puesta. **Es obligatorio y es la mitad de lo
 Contra este repositorio. Con tu rama empujada, GitHub te ofrece el botón arriba.
 
 ```bash
-git add docs/auditoria prompts.md
-git commit -m "auditoria: reglas de proceso + prompts"
-git push -u origin auditoria-<tus-iniciales>
+git add docs/evals prompts.md
+git commit -m "evals: la regla del README de capability, medida"
+git push -u origin evals-<tus-iniciales>
 ```
 
 ## El plazo
@@ -136,8 +145,9 @@ git push -u origin auditoria-<tus-iniciales>
 ## Antes de conectarte, comprueba
 
 - [ ] Estás en tu **fork**, en tu rama, y `git push` funciona.
-- [ ] `make start` levanta backend y frontend, y `(cd backend && npm test)` corre.
-- [ ] Existe tu archivo en `docs/auditoria/`, con la tabla y las tres líneas.
+- [ ] `claude --version` responde **2.1.269 o posterior**.
+- [ ] `make setup` terminó y `cd backend && npm test` corre en verde.
+- [ ] Existe tu archivo en `docs/evals/`, con la Parte A y las tres líneas.
 - [ ] `prompts.md` está relleno, con modelo y herramienta en cada bloque.
 - [ ] El pull request está abierto.
 
