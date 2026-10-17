@@ -146,6 +146,14 @@ El typecheck vive dentro de `npm run build`; el lint es **oxlint** (`.oxlintrc.j
 
 Stack: **Tailwind v4** (plugin de Vite, sin `tailwind.config.js`; los tokens viven en `src/index.css`), **shadcn/ui** (`components.json`, componentes generados en `src/components/ui/` — se traen con `npx shadcn@latest add <componente>` y no se editan a mano) y **react-router**. El alias `@/*` → `src/*` está declarado a la vez en `tsconfig.app.json` (sin `baseUrl`, deprecado en TS 6) y en `vite.config.ts`.
 
+De dónde sale una pieza de interfaz nueva, por este orden:
+
+1. Una que ya exista en `src/components/ui/`: se usa.
+2. Si no está y shadcn/ui la tiene, se trae con `npx shadcn@latest add <componente>`; no se dibuja a mano.
+3. Solo si no hay ninguna de las dos, se arma en `src/components/` con piezas de `src/components/ui/`, y se avisa en la respuesta de que se armó a mano y por qué.
+
+Los colores salen de los valores con nombre de `src/index.css` (`bg-primary`, `text-muted-foreground`…), nunca a pelo: ni hexadecimales, ni la paleta cruda de Tailwind (`bg-blue-600`), ni `rgb()`/`hsl()`/`oklch()` literales. Un hook `PostToolUse` (`.claude/hooks/sin-colores-a-pelo.sh`) avisa, sin bloquear, cuando se escribe uno en `src/`; `index.css` queda fuera porque ahí sí van los literales.
+
 Organización de `src/`:
 
 - `lib/api.ts` — único punto de contacto con el backend: envuelve `fetch`, desenvuelve el `{ data }` del serializer, adjunta el `Authorization: Bearer` y traduce los errores de VineJS/auth a `ApiError` con `message` ya en castellano y `fieldErrors` por campo. Toda llamada nueva a la API se añade aquí, no en los componentes.
