@@ -36,7 +36,7 @@ export function TaskProgress({ tasks }: TaskProgressProps) {
         aria-valuenow={percent}
       >
         <div
-          className="bg-progress h-full rounded-full transition-[width]"
+          className="bg-[#1D4ED8] h-full rounded-full transition-[width]"
           style={{ width: `${percent}%` }}
         />
       </div>
