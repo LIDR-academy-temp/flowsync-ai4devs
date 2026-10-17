@@ -7,6 +7,7 @@ import { useAuth } from '@/auth/use-auth'
 import { useAuthForm } from '@/auth/use-auth-form'
 import { TaskItem } from '@/components/task-item'
 import { TaskFilter } from '@/components/task-filter'
+import { TaskProgress } from '@/components/task-progress'
 import { FieldError } from '@/components/field-error'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
@@ -292,6 +293,10 @@ export function TasksPage() {
             <InfoIcon />
             <AlertDescription>{notice}</AlertDescription>
           </Alert>
+        )}
+
+        {visibleTasks && !invalidFilter && (
+          <TaskProgress tasks={visibleTasks} />
         )}
 
         {visibleTasks === undefined ? (
