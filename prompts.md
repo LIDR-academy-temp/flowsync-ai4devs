@@ -22,14 +22,58 @@ Borra el ejemplo de abajo cuando escribas el primero.
 
 ## Prompt 1
 
-**Modelo:** Opus 1M xHigh
+**Modelo utilizado:** Claude 3.5 Sonnet (Thinking High)
 **Herramienta:** Claude Code
 
 ```
-Este es el ejemplo. Bórralo.
+Título: Flujo de inicio de sesión y visualización de perfil de usuario
 
-El prompt va aquí dentro, entero y con sus saltos de línea,
-para que se sepa dónde empieza y dónde acaba.
+Descripción:
+Como usuario de FlowSync, quiero una interfaz en el frontend que me permita iniciar sesión con mis credenciales y, una vez autenticado, ver los datos de mi cuenta en una pantalla de perfil con la opción de cerrar sesión.
+
+Criterios de aceptación:
+- Implementar la vista/formulario de autenticación conectada al endpoint correspondiente del backend.
+- Al autenticarse exitosamente, almacenar de forma segura la sesión y redirigir al usuario a una vista de perfil.
+- La pantalla de perfil debe consultar y mostrar los datos del usuario autenticado (nombre completo, correo e iniciales) mediante el endpoint de cuenta existente.
+- Incluir la opción de cerrar sesión, invalidando la sesión en el servidor y devolviendo al usuario a la pantalla de acceso.
+- Manejar estados de carga durante las peticiones y mensajes claros ante credenciales inválidas o errores de red.
+- Reutilizar los componentes de UI ya existentes en el proyecto sin añadir dependencias externas.
+
+```
+**Qué salió:** Demoro un poco más con el harness.
+
+---
+
+## Prompt 2
+
+**Modelo utilizado:** Claude 3.5 Sonnet (Thinking High)
+**Herramienta:** Claude Code
+
+```
+Como nuevo usuario de FlowSync, quiero una pantalla de registro en el frontend que me permita crear una cuenta ingresando mis datos, para luego acceder directamente a la plataforma.
+
+Criterios de aceptación:
+- Crear el formulario de registro integrado con el endpoint de registro existente en el backend.
+- Solicitar nombre completo, correo electrónico, contraseña y confirmación de contraseña.
+- Validar en el cliente que los campos requeridos estén presentes y que las contraseñas coincidan antes de enviar la petición.
+- Al registrarse exitosamente, guardar la sesión obtenida y redirigir directamente a la vista de perfil sin requerir un login manual adicional.
+- Mostrar estados de carga en el botón durante el envío y manejar mensajes de error claros (como correo duplicado o validaciones de longitud de contraseña).
+- Reutilizar los componentes de UI ya existentes en el proyecto y mantener la coherencia de estilos con la vista de login.
+
+```
+**Qué salió:** Demoro un poco más con el harness.
+---
+
+## Prompt 3: Frontend - Renderizado del Mapeo de Capacidades y Manejo de Errores
+
+**Modelo utilizado:** Claude 3.5 Sonnet (Thinking High)
+**Herramienta:** Claude Code
+```
+Muestra la respuesta del backend en la interfaz tras enviar el formulario:
+
+- Si la petición es exitosa (200), oculta el formulario y muestra una tarjeta con el nombre del usuario, su documento y la lista de capacidades sugeridas, junto a un botón para volver al formulario.
+- Si la petición falla, muestra un mensaje de error claro en pantalla sin borrar los datos que el usuario ya escribió.
+- La transición debe ser puramente reactiva, sin recargar la página.
 ```
 
 **Qué salió:** (opcional, una línea) funcionó a la primera / tuve que insistir / me inventó una ruta que no existe.
