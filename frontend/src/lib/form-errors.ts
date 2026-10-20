@@ -19,6 +19,8 @@ export const NETWORK_ERROR_MESSAGE =
 export const UNEXPECTED_ERROR_MESSAGE =
   'Ha ocurrido un error inesperado. Inténtalo de nuevo.'
 
+const UNREACHABLE_STATUSES = new Set([502, 503, 504])
+
 function ruleMessage({ rule, meta }: ApiErrorDetail): string | undefined {
   switch (rule) {
     case 'required':
@@ -50,7 +52,9 @@ export function toFormErrors(
   if (!(error instanceof ApiError)) {
     return { form: UNEXPECTED_ERROR_MESSAGE, fields: {} }
   }
-  if (error.status === 0) {
+  // Status 0 is a failed fetch; 502-504 is what the Vite proxy (or any gateway)
+  // answers when the backend itself is down.
+  if (error.status === 0 || UNREACHABLE_STATUSES.has(error.status)) {
     return { form: NETWORK_ERROR_MESSAGE, fields: {} }
   }
 

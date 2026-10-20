@@ -85,6 +85,8 @@ describe('toFormErrors', () => {
 
   it('reports network failures and unknown errors', () => {
     expect(toFormErrors(new ApiError(0, [])).form).toBe(NETWORK_ERROR_MESSAGE)
+    expect(toFormErrors(new ApiError(502, [])).form).toBe(NETWORK_ERROR_MESSAGE)
+    expect(toFormErrors(new ApiError(504, [])).form).toBe(NETWORK_ERROR_MESSAGE)
     expect(toFormErrors(new TypeError('boom')).form).toBe(
       UNEXPECTED_ERROR_MESSAGE,
     )

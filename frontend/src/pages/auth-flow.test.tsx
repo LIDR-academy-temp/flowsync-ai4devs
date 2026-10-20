@@ -2,7 +2,10 @@ import { screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { INVALID_CREDENTIALS_MESSAGE } from '@/pages/LoginPage'
 import { EMAIL_TAKEN_MESSAGE } from '@/pages/SignupPage'
-import { NETWORK_ERROR_MESSAGE } from '@/lib/form-errors'
+import {
+  NETWORK_ERROR_MESSAGE,
+  UNEXPECTED_ERROR_MESSAGE,
+} from '@/lib/form-errors'
 import { mockFetch, renderApp } from '@/test/render-app'
 
 const user = {
@@ -59,18 +62,27 @@ describe('login', () => {
     expect(localStorage.getItem('flowsync.token')).toBeNull()
   })
 
-  it('shows a clear message when the backend is unreachable', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('fail')))
-    const { user: ui } = renderApp('/login')
+  it.each([
+    ['fetch rejects', () => vi.fn().mockRejectedValue(new TypeError('fail'))],
+    [
+      'the dev proxy answers 502',
+      () => vi.fn().mockResolvedValue(new Response(null, { status: 502 })),
+    ],
+  ])(
+    'shows a clear message when the backend is unreachable (%s)',
+    async (_, makeFetch) => {
+      vi.stubGlobal('fetch', makeFetch())
+      const { user: ui } = renderApp('/login')
 
-    await ui.type(screen.getByLabelText('Email'), 'ada@example.com')
-    await ui.type(screen.getByLabelText('Contraseña'), 'secret123')
-    await ui.click(screen.getByRole('button', { name: 'Entrar' }))
+      await ui.type(screen.getByLabelText('Email'), 'ada@example.com')
+      await ui.type(screen.getByLabelText('Contraseña'), 'secret123')
+      await ui.click(screen.getByRole('button', { name: 'Entrar' }))
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      NETWORK_ERROR_MESSAGE,
-    )
-  })
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        NETWORK_ERROR_MESSAGE,
+      )
+    },
+  )
 
   it('links to the signup screen', async () => {
     const { user: ui } = renderApp('/login')
@@ -162,6 +174,19 @@ describe('profile', () => {
       await screen.findByRole('button', { name: 'Entrar' }),
     ).toBeInTheDocument()
     expect(localStorage.getItem('flowsync.token')).toBeNull()
+  })
+
+  it('shows an error instead of loading forever when the profile fails', async () => {
+    localStorage.setItem('flowsync.token', 'oat_abc')
+    mockFetch({
+      status: 422,
+      body: { errors: [{ message: 'x', rule: 'regex', field: 'other' }] },
+    })
+    renderApp('/profile')
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      UNEXPECTED_ERROR_MESSAGE,
+    )
   })
 
   it('logs out and returns to login', async () => {

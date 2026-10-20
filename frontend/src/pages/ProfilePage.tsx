@@ -12,7 +12,7 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { ApiError, getProfile, type User } from '@/lib/api'
-import { toFormErrors } from '@/lib/form-errors'
+import { toFormErrors, UNEXPECTED_ERROR_MESSAGE } from '@/lib/form-errors'
 
 const dateFormatter = new Intl.DateTimeFormat('es-ES', { dateStyle: 'long' })
 
@@ -34,7 +34,7 @@ export function ProfilePage() {
         if (ignore) return
         // A revoked or expired token: drop it and let the guard redirect.
         if (reason instanceof ApiError && reason.status === 401) clearSession()
-        else setError(toFormErrors(reason).form)
+        else setError(toFormErrors(reason).form ?? UNEXPECTED_ERROR_MESSAGE)
       },
     )
 
