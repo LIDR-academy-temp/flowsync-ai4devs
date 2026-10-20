@@ -11,16 +11,17 @@ Escribe **una sola línea por punto**, con tus palabras y con lo que mediste, no
 Cuántas filas cambian de valor en tu cambio de esquema, medido con una consulta, y en qué rama del
 árbol de reversibilidad cae. Si tu migración no toca datos, dilo tal cual: también es una respuesta.
 
--
+- La barra se creo dentro del catalogo en este path `components/ui/progress.tsx`
 
 ## 2. Lo que la batería de pruebas no podía ver
 
 Una cosa que la batería de pruebas no podía ver. Si no encontraste ninguna, escribe qué buscaste y dónde.
 
--
+- - El proyecto ya usaba shadcn entonces que el agente lo eligio en vez de inventar pero no reutilizo nada de lo que ya habia
+
 
 ## 3. Tu duda
 
 De qué dudaste, o qué no pudiste comprobar.
 
--
+-  el hook modelo que cita la tarea (`migracion-con-vuelta.sh`) no existe en `s12/start`
