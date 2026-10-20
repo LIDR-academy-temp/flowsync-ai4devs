@@ -3,7 +3,7 @@ import { Link, Navigate, useNavigate } from 'react-router'
 import { AlertCircle } from 'lucide-react'
 import { useAuth } from '@/auth/auth-context'
 import { FormField } from '@/components/form-field'
-import { ApiError, fieldErrors, signup } from '@/lib/api'
+import { ApiError, fieldErrors, NETWORK_ERROR, signup } from '@/lib/api'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import {
@@ -19,27 +19,20 @@ import {
 const PASSWORD_MIN = 8
 const PASSWORD_MAX = 32
 
-type Field = 'email' | 'password' | 'passwordConfirmation'
+const FIELDS = ['email', 'password', 'passwordConfirmation'] as const
+type Field = (typeof FIELDS)[number]
+
+const GENERIC_ERROR = 'No se pudo crear la cuenta. Inténtalo de nuevo.'
 
 function validate(email: string, password: string, passwordConfirmation: string) {
   const errors: Partial<Record<Field, string>> = {}
-  if (!email.trim()) errors.email = 'Introduce tu email.'
+  if (!email) errors.email = 'Introduce tu email.'
   if (password.length < PASSWORD_MIN || password.length > PASSWORD_MAX) {
     errors.password = `La contraseña debe tener entre ${PASSWORD_MIN} y ${PASSWORD_MAX} caracteres.`
   }
   if (passwordConfirmation !== password) {
     errors.passwordConfirmation = 'Las contraseñas no coinciden.'
   }
-  return errors
-}
-
-/** Turns backend validation errors into user-facing messages. */
-function signupFieldErrors(error: ApiError) {
-  const errors: Partial<Record<Field, string>> = fieldErrors(error)
-  const emailTaken = error.errors.some(
-    ({ field, rule }) => field === 'email' && rule === 'database.unique'
-  )
-  if (emailTaken) errors.email = 'Ya existe una cuenta con este email.'
   return errors
 }
 
@@ -59,24 +52,25 @@ export function SignupPage() {
     event.preventDefault()
     setFormError(null)
 
-    const clientErrors = validate(email, password, passwordConfirmation)
+    const trimmedEmail = email.trim()
+    const clientErrors = validate(trimmedEmail, password, passwordConfirmation)
     setErrors(clientErrors)
     if (Object.keys(clientErrors).length > 0) return
 
     setSubmitting(true)
     try {
-      const session = await signup({ email, password, passwordConfirmation })
+      const session = await signup({ email: trimmedEmail, password, passwordConfirmation })
       setSession(session.token)
       navigate('/profile', { replace: true })
     } catch (error) {
-      if (error instanceof ApiError && error.status === 422) {
-        setErrors(signupFieldErrors(error))
+      if (!(error instanceof ApiError)) {
+        setFormError(GENERIC_ERROR)
+      } else if (error.status === 422) {
+        const byField = fieldErrors(error, FIELDS)
+        if (Object.keys(byField).length > 0) setErrors(byField)
+        else setFormError(GENERIC_ERROR)
       } else {
-        setFormError(
-          error instanceof ApiError && error.status === 0
-            ? error.message
-            : 'No se pudo crear la cuenta. Inténtalo de nuevo.'
-        )
+        setFormError(error.status === NETWORK_ERROR ? error.message : GENERIC_ERROR)
       }
     } finally {
       setSubmitting(false)

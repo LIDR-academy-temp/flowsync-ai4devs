@@ -104,11 +104,29 @@ export async function logout(token: string) {
   await request('/account/logout', { method: 'POST', token })
 }
 
-/** Groups backend validation errors (422) by field name, keeping the first message per field. */
-export function fieldErrors(error: ApiError): Record<string, string> {
-  const byField: Record<string, string> = {}
-  for (const { field, message } of error.errors) {
-    if (field && !(field in byField)) byField[field] = message
+/** Spanish copy for the VineJS rules used by `backend/app/validators/user.ts`. */
+const RULE_MESSAGES: Record<string, string> = {
+  'required': 'Este campo es obligatorio.',
+  'email': 'Introduce un email válido.',
+  'minLength': 'El valor es demasiado corto.',
+  'maxLength': 'El valor es demasiado largo.',
+  'sameAs': 'Las contraseñas no coinciden.',
+  'database.unique': 'Ya existe una cuenta con este email.',
+}
+
+/**
+ * Maps backend validation errors (422) onto the given form fields, keeping the
+ * first message per field. Errors for other fields are dropped, so an empty
+ * result means the caller should show a form-level message instead.
+ */
+export function fieldErrors<F extends string>(
+  error: ApiError,
+  fields: readonly F[]
+): Partial<Record<F, string>> {
+  const byField: Partial<Record<F, string>> = {}
+  for (const { field, rule, message } of error.errors) {
+    if (!field || !fields.includes(field as F) || field in byField) continue
+    byField[field as F] = (rule && RULE_MESSAGES[rule]) || message
   }
   return byField
 }

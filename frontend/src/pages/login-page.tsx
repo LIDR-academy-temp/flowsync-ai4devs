@@ -3,7 +3,7 @@ import { Link, Navigate, useNavigate } from 'react-router'
 import { AlertCircle } from 'lucide-react'
 import { useAuth } from '@/auth/auth-context'
 import { FormField } from '@/components/form-field'
-import { ApiError, fieldErrors, login } from '@/lib/api'
+import { ApiError, fieldErrors, login, NETWORK_ERROR } from '@/lib/api'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import {
@@ -15,13 +15,18 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 
+const FIELDS = ['email', 'password'] as const
+type Field = (typeof FIELDS)[number]
+
+const GENERIC_ERROR = 'No se pudo iniciar sesión. Inténtalo de nuevo.'
+
 export function LoginPage() {
   const { token, setSession } = useAuth()
   const navigate = useNavigate()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [formError, setFormError] = useState<string | null>(null)
-  const [errors, setErrors] = useState<Record<string, string>>({})
+  const [errors, setErrors] = useState<Partial<Record<Field, string>>>({})
   const [submitting, setSubmitting] = useState(false)
 
   if (token) return <Navigate to="/profile" replace />
@@ -29,24 +34,30 @@ export function LoginPage() {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setFormError(null)
-    setErrors({})
-    setSubmitting(true)
 
+    const trimmedEmail = email.trim()
+    const clientErrors: Partial<Record<Field, string>> = {}
+    if (!trimmedEmail) clientErrors.email = 'Introduce tu email.'
+    if (!password) clientErrors.password = 'Introduce tu contraseña.'
+    setErrors(clientErrors)
+    if (Object.keys(clientErrors).length > 0) return
+
+    setSubmitting(true)
     try {
-      const session = await login({ email, password })
+      const session = await login({ email: trimmedEmail, password })
       setSession(session.token)
       navigate('/profile', { replace: true })
     } catch (error) {
-      if (error instanceof ApiError && error.status === 400) {
+      if (!(error instanceof ApiError)) {
+        setFormError(GENERIC_ERROR)
+      } else if (error.status === 400) {
         setFormError('Email o contraseña incorrectos.')
-      } else if (error instanceof ApiError && error.status === 422) {
-        setErrors(fieldErrors(error))
+      } else if (error.status === 422) {
+        const byField = fieldErrors(error, FIELDS)
+        if (Object.keys(byField).length > 0) setErrors(byField)
+        else setFormError(GENERIC_ERROR)
       } else {
-        setFormError(
-          error instanceof ApiError && error.status === 0
-            ? error.message
-            : 'No se pudo iniciar sesión. Inténtalo de nuevo.'
-        )
+        setFormError(error.status === NETWORK_ERROR ? error.message : GENERIC_ERROR)
       }
     } finally {
       setSubmitting(false)

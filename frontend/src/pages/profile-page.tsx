@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { AlertCircle } from 'lucide-react'
 import { useAuth } from '@/auth/auth-context'
-import { ApiError, getProfile, logout, type User } from '@/lib/api'
+import { ApiError, getProfile, logout, NETWORK_ERROR, type User } from '@/lib/api'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import {
@@ -39,7 +39,7 @@ export function ProfilePage() {
           return
         }
         setError(
-          err instanceof ApiError && err.status === 0
+          err instanceof ApiError && err.status === NETWORK_ERROR
             ? err.message
             : 'No se pudo cargar tu perfil. Inténtalo de nuevo más tarde.'
         )

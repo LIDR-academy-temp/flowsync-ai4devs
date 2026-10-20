@@ -35,7 +35,6 @@ node ace migration:run       # creates tmp/db.sqlite3 and regenerates database/s
 - `npm run build` — `tsc -b && vite build`
 - `npm run lint` — oxlint (not ESLint)
 - `npm run format` — Prettier with the same `@adonisjs/prettier-config` as the backend. A `PostToolUse` hook in `.claude/settings.json` already runs it on every `frontend/` file Claude writes or edits.
-
 - Add shadcn/ui components with `npx shadcn@latest add <name>` (config in `components.json`, style `radix-nova`). They land in `src/components/ui/` as generated code; the `only-export-components` lint warning in `button.tsx` comes from shadcn.
 
 There is no frontend test runner configured.
@@ -43,7 +42,7 @@ There is no frontend test runner configured.
 ## Frontend architecture
 
 - **`@/` alias** → `src/` (declared in `tsconfig.json`, `tsconfig.app.json` and `vite.config.ts`). Use it instead of relative imports.
-- **Backend access.** In dev, Vite proxies `/api` to `http://localhost:3333`, so calls are same-origin and the backend must be running. `VITE_API_URL` (optional, backend origin) overrides that for other environments. All calls go through `src/lib/api.ts`, which unwraps `{ data }` and throws `ApiError { status, errors[] }` (status `0` = network failure). `fieldErrors()` maps 422 validation errors to form fields.
+- **Backend access.** In dev, Vite proxies `/api` to `http://localhost:3333`, so calls are same-origin and the backend must be running. `VITE_API_URL` (optional, backend origin) overrides that for other environments; a cross-origin `VITE_API_URL` also needs that origin in the `config/cors.ts` allowlist, which is empty in production. All calls go through `src/lib/api.ts`, which unwraps `{ data }` and throws `ApiError { status, errors[] }` (status `0` = network failure). `fieldErrors()` maps 422 validation errors to form fields, with Spanish copy per VineJS rule (`RULE_MESSAGES`).
 - **Session.** `src/auth/auth-context.tsx` (`AuthProvider`/`useAuth`) keeps the opaque access token in `localStorage` (`flowsync.token`). `RequireAuth` guards protected routes. A 401 from the API should call `clearSession()`, which bounces the user to `/login`.
 - **Routes** (`src/App.tsx`): `/login`, `/signup`, `/profile` (protected). Any other path redirects to `/profile`. UI copy is in Spanish.
 

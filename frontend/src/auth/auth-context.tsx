@@ -1,4 +1,12 @@
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react'
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react'
 
 const TOKEN_KEY = 'flowsync.token'
 
@@ -29,6 +37,15 @@ const AuthContext = createContext<AuthContextValue | null>(null)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(readToken)
+
+  // Keep tabs in sync: a login/logout in another tab replaces or drops this tab's token.
+  useEffect(() => {
+    function handleStorage(event: StorageEvent) {
+      if (event.key === TOKEN_KEY || event.key === null) setToken(readToken())
+    }
+    window.addEventListener('storage', handleStorage)
+    return () => window.removeEventListener('storage', handleStorage)
+  }, [])
 
   const setSession = useCallback((newToken: string) => {
     writeToken(newToken)
