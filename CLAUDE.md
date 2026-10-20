@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 FlowSync is a two-package repo with no root `package.json` or workspace tooling — run every command from inside `backend/` or `frontend/`, each with its own `node_modules` and lockfile.
 
 - `backend/` — AdonisJS 7 JSON API (API starter kit): Lucid ORM on SQLite (`better-sqlite3`), VineJS validation, token auth, Japa tests.
-- `frontend/` — React 19 + Vite 8 + TypeScript, still the stock Vite template (`src/App.tsx`). It does not call the backend yet.
+- `frontend/` — React 19 + Vite 8 + TypeScript SPA: Tailwind v4 + shadcn/ui, `react-router`. Implements signup, login and the protected profile view against the backend auth API.
 
 ## Commands
 
@@ -36,7 +36,16 @@ node ace migration:run       # creates tmp/db.sqlite3 and regenerates database/s
 - `npm run lint` — oxlint (not ESLint)
 - `npm run format` — Prettier with the same `@adonisjs/prettier-config` as the backend. A `PostToolUse` hook in `.claude/settings.json` already runs it on every `frontend/` file Claude writes or edits.
 
+- Add shadcn/ui components with `npx shadcn@latest add <name>` (config in `components.json`, style `radix-nova`). They land in `src/components/ui/` as generated code; the `only-export-components` lint warning in `button.tsx` comes from shadcn.
+
 There is no frontend test runner configured.
+
+## Frontend architecture
+
+- **`@/` alias** → `src/` (declared in `tsconfig.json`, `tsconfig.app.json` and `vite.config.ts`). Use it instead of relative imports.
+- **Backend access.** In dev, Vite proxies `/api` to `http://localhost:3333`, so calls are same-origin and the backend must be running. `VITE_API_URL` (optional, backend origin) overrides that for other environments. All calls go through `src/lib/api.ts`, which unwraps `{ data }` and throws `ApiError { status, errors[] }` (status `0` = network failure). `fieldErrors()` maps 422 validation errors to form fields.
+- **Session.** `src/auth/auth-context.tsx` (`AuthProvider`/`useAuth`) keeps the opaque access token in `localStorage` (`flowsync.token`). `RequireAuth` guards protected routes. A 401 from the API should call `clearSession()`, which bounces the user to `/login`.
+- **Routes** (`src/App.tsx`): `/login`, `/signup`, `/profile` (protected). Any other path redirects to `/profile`. UI copy is in Spanish.
 
 ## Backend architecture
 
