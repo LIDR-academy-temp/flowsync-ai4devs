@@ -11,6 +11,7 @@ import { FieldError } from '@/components/field-error'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Progress } from '@/components/ui/progress'
 import { Label } from '@/components/ui/label'
 import {
   DEFAULT_LIST_STATUSES,
@@ -218,6 +219,13 @@ export function TasksPage() {
   // confianza, y aquí es donde se nota si no lo era.
   const activeStatus = TASK_STATUSES.find((status) => status === statusParam)
 
+  // Progreso sobre lo que se está viendo, no sobre todo el equipo: se calcula
+  // con `visibleTasks`, así que sigue al filtro y al cambio de estado en vivo.
+  const visibleDone =
+    visibleTasks?.filter((task) => task.status === 'done').length ?? 0
+  const visibleTotal = visibleTasks?.length ?? 0
+  const progress = visibleTotal > 0 ? (visibleDone / visibleTotal) * 100 : 0
+
   return (
     <div className="bg-muted/40 min-h-svh">
       <header className="bg-background border-b">
@@ -323,16 +331,30 @@ export function TasksPage() {
             </AlertDescription>
           </Alert>
         ) : visibleTasks.length > 0 ? (
-          <ul className="bg-background divide-y rounded-lg border">
-            {visibleTasks.map((task) => (
-              <TaskItem
-                key={task.id}
-                task={task}
-                onChangeStatus={handleChangeStatus}
-                isBusy={pendingIds.has(task.id)}
+          <>
+            <div className="mb-3">
+              <div className="text-muted-foreground mb-1.5 flex justify-between text-sm">
+                <span>Progreso</span>
+                <span>
+                  {visibleDone} de {visibleTotal} hechas
+                </span>
+              </div>
+              <Progress
+                value={progress}
+                aria-label="Tareas hechas entre las que se ven"
               />
-            ))}
-          </ul>
+            </div>
+            <ul className="bg-background divide-y rounded-lg border">
+              {visibleTasks.map((task) => (
+                <TaskItem
+                  key={task.id}
+                  task={task}
+                  onChangeStatus={handleChangeStatus}
+                  isBusy={pendingIds.has(task.id)}
+                />
+              ))}
+            </ul>
+          </>
         ) : statusParam ? (
           // Segundo final: el filtro es válido y ahora mismo no hay nada en
           // ese estado. Es una respuesta legítima, no un fallo.

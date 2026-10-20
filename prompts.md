@@ -22,14 +22,41 @@ Borra el ejemplo de abajo cuando escribas el primero.
 
 ## Prompt 1
 
-**Modelo:** Opus 1M xHigh
+**Modelo:** Sonnet 5.5
 **Herramienta:** Claude Code
 
 ```
-Este es el ejemplo. Bórralo.
-
-El prompt va aquí dentro, entero y con sus saltos de línea,
-para que se sepa dónde empieza y dónde acaba.
+Añade una barra de progreso encima del listado en la pantalla de tareas que muestre que parte de las tareas que se están viendo ya estan hechas
 ```
 
-**Qué salió:** (opcional, una línea) funcionó a la primera / tuve que insistir / me inventó una ruta que no existe.
+**Qué salió:** (opcional, una línea) implemento el cambio
+
+
+
+## Prompt 2
+
+**Modelo:** Sonnet 5.5
+**Herramienta:** Claude Code
+
+```
+Monta un guardarraíl con dos piezas.
+
+1. Un hook en .claude/hooks/ que avise cuando se escriba un color a pelo en
+   frontend/src/. Usa como modelo .claude/hooks/migracion-con-vuelta.sh y
+   regístralo en .claude/settings.json como lo está ese. Debe:
+   - saltar después de Write y Edit sobre ficheros de frontend/src/,
+     excluyendo frontend/src/index.css;
+   - detectar hex, rgb(), hsl(), oklch(), valores arbitrarios como bg-[#...]
+     y clases de la paleta de Tailwind como bg-blue-500;
+   - avisar sin bloquear, igual que el modelo;
+   - quedar ejecutable.
+
+2. Una regla en el CLAUDE.md de la raíz que diga de dónde sale una pieza de
+   interfaz nueva: primero se busca en frontend/src/components/ui/; si no
+   existe, se añade ahí; y los colores salen de los valores con nombre de
+   frontend/src/index.css, nunca escritos a pelo.
+
+No toques la barra de progreso ni ningún otro fichero del frontend.
+```
+
+**Qué salió:** (opcional, una línea) monto las dos piesas, ejecuto e hook
