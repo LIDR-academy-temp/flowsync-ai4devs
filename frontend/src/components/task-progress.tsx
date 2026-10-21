@@ -36,6 +36,7 @@ export function TaskProgress({ tasks }: TaskProgressProps) {
       </div>
       <Progress
         value={percent}
+        className="bg-progress/20 [&_[data-slot=progress-indicator]]:bg-progress"
         aria-labelledby="task-progress-label"
         aria-valuetext={`${summary} (${percent} %)`}
       />
