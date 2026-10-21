@@ -155,6 +155,20 @@ Organización de `src/`:
 
 La URL de la API sale de `VITE_API_URL` (ver `frontend/.env.example`); por defecto `http://localhost:3333`.
 
+### De dónde sale una pieza de interfaz nueva
+
+Antes de escribir un componente se recorre esta escalera, en orden, y se baja al siguiente peldaño solo cuando el anterior no tiene la pieza:
+
+1. **Lo que ya hay.** Un componente de `src/components/` o de `src/components/ui/`, usado tal cual o con sus props y variantes (`variant`, `size`). No se crea un segundo componente que haga lo mismo que uno existente.
+2. **shadcn/ui.** Si el catálogo de shadcn tiene la pieza (progreso, diálogo, pestañas, selector…), se trae con `npx shadcn@latest add <componente>` desde `frontend/` y se usa sin editarla. Copiarla a mano, reescribirla en un `div` o tocar el fichero generado no vale: el siguiente `add` la pisaría y deja de ser la de shadcn.
+3. **Un componente propio**, solo si los dos anteriores no la tienen. Va en `src/components/` con nombre en kebab-case, y se compone de piezas de `ui/`, de iconos de `lucide-react` y de los tokens de `src/index.css` (`bg-primary`, `text-muted-foreground`…), nunca de colores a pelo. Si le falta un token, se añade en `index.css`, en `:root` y en `.dark`.
+
+No entran librerías de componentes nuevas (MUI, Chakra, Headless UI…) ni HTML copiado de otra web: cada una trae su propio sistema de estilos, que pelea con el de Tailwind y los tokens.
+
+Al proponer o entregar una pieza de interfaz, se dice en qué peldaño se quedó y por qué no valía el anterior («shadcn no tiene X»).
+
+**Por qué va aquí y no en un hook.** Un script puede ver que se escribió `#ff0000` (eso lo avisa `.claude/hooks/color-a-pelo.sh`), pero no si el `div` con dos capas que se acaba de escribir es un `Progress` de shadcn rehecho a mano. Esa decisión se toma antes de escribir y solo se puede leer, así que la regla está donde el agente la lee.
+
 ## Reglas de proceso
 - Convenciones de base de datos (única fuente, no se copian aquí): @docs/convenciones/base-de-datos.md
 - Cualquier tarea de backend se hace con la skill `backend-feature` (`.claude/skills/backend-feature/SKILL.md`), sin que nadie tenga que pedirlo: plan por capas y parada para aprobarlo, tests de contrato con el subagente `test-writer`, rojo, tests congelados por su `shasum`, implementación con el subagente `implementer` hasta el verde, y cierre con `dbhub`, `openapi:check` y Postman.
