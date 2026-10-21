@@ -7,6 +7,7 @@ import { useAuth } from '@/auth/use-auth'
 import { useAuthForm } from '@/auth/use-auth-form'
 import { TaskItem } from '@/components/task-item'
 import { TaskFilter } from '@/components/task-filter'
+import { TaskProgress } from '@/components/task-progress'
 import { FieldError } from '@/components/field-error'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
@@ -213,6 +214,14 @@ export function TasksPage() {
   // filtro: de aquí sale que marcar algo como hecho lo saque de la vista.
   const visibleTasks = tasks?.filter((task) => matchesFilter(task.status))
 
+  // La base de la barra de progreso: lo visible más lo que se ha cerrado
+  // desde esta vista. Si contara solo lo visible, en la vista por defecto
+  // marcaría siempre 0 %, porque lo hecho sale de ella. Lo que se ha creado o
+  // movido fuera sin terminarlo no cuenta: nunca se ha visto aquí.
+  const progressTasks = tasks?.filter(
+    (task) => matchesFilter(task.status) || task.status === 'done',
+  )
+
   // El estado pedido, si de verdad es uno de los tres. Se busca en vez de
   // afirmarlo con un `as`: lo que viene de la URL no merece ese voto de
   // confianza, y aquí es donde se nota si no lo era.
@@ -323,16 +332,19 @@ export function TasksPage() {
             </AlertDescription>
           </Alert>
         ) : visibleTasks.length > 0 ? (
-          <ul className="bg-background divide-y rounded-lg border">
-            {visibleTasks.map((task) => (
-              <TaskItem
-                key={task.id}
-                task={task}
-                onChangeStatus={handleChangeStatus}
-                isBusy={pendingIds.has(task.id)}
-              />
-            ))}
-          </ul>
+          <>
+            <TaskProgress tasks={progressTasks ?? visibleTasks} />
+            <ul className="bg-background divide-y rounded-lg border">
+              {visibleTasks.map((task) => (
+                <TaskItem
+                  key={task.id}
+                  task={task}
+                  onChangeStatus={handleChangeStatus}
+                  isBusy={pendingIds.has(task.id)}
+                />
+              ))}
+            </ul>
+          </>
         ) : statusParam ? (
           // Segundo final: el filtro es válido y ahora mismo no hay nada en
           // ese estado. Es una respuesta legítima, no un fallo.

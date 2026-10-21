@@ -146,6 +146,15 @@ El typecheck vive dentro de `npm run build`; el lint es **oxlint** (`.oxlintrc.j
 
 Stack: **Tailwind v4** (plugin de Vite, sin `tailwind.config.js`; los tokens viven en `src/index.css`), **shadcn/ui** (`components.json`, componentes generados en `src/components/ui/` — se traen con `npx shadcn@latest add <componente>` y no se editan a mano) y **react-router**. El alias `@/*` → `src/*` está declarado a la vez en `tsconfig.app.json` (sin `baseUrl`, deprecado en TS 6) y en `vite.config.ts`.
 
+De dónde sale una pieza de interfaz nueva, por este orden:
+
+1. Lo que ya existe en `src/components/ui/`.
+2. Si falta, se trae con `npx shadcn@latest add <componente>`; no se escribe a mano ni se edita lo generado.
+3. Fuera de `ui/` (`components/`, `pages/`) solo hay composición de esas piezas: layout, datos y comportamiento, no estilos de componente nuevos.
+4. Los colores salen solo de los tokens de `src/index.css` (`bg-primary`, `text-muted-foreground`, `border-border`…). Nada de hexadecimales, `rgb()`/`hsl()`/`oklch()` ni paleta cruda de Tailwind (`bg-blue-600`, `text-white`); si falta un token, se añade en `index.css` y se usa por su nombre.
+
+El hook `PostToolUse` `.claude/hooks/colores-por-tokens.sh` avisa, sin bloquear, cuando lo que se acaba de escribir en `frontend/src/` (menos `index.css`) trae un color a pelo. Solo mira el texto nuevo y es una red, no un candado: no ve colores armados por partes ni con nombre CSS.
+
 Organización de `src/`:
 
 - `lib/api.ts` — único punto de contacto con el backend: envuelve `fetch`, desenvuelve el `{ data }` del serializer, adjunta el `Authorization: Bearer` y traduce los errores de VineJS/auth a `ApiError` con `message` ya en castellano y `fieldErrors` por campo. Toda llamada nueva a la API se añade aquí, no en los componentes.
