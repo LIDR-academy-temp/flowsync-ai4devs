@@ -10,14 +10,14 @@ Escribe **una sola línea por punto**, con tus palabras y con lo que mediste, no
 
 Dónde aterrizó la pieza y con qué valores, con los números que contaste: dentro o fuera del catálogo, cuántos colores a pelo había antes y cuántos después.
 
-Los dos ficheros del componente aterrizaron dentro de la carpeta del catalogo:
-frontend/src/components/ui/progress.tsx
-frontend/src/components/Progress-bar.tsx
+Los dos ficheros del componente aterrizaron:
+frontend/src/components/ui/progress.tsx -- dentro del catalogo --
+frontend/src/components/progress-bar.tsx
 
 El fichero de documentacion del compoente aterrizo en la carpeta docs:
 docs/interfaz/barra-de-progreso.md
 
-El comando grep -c "^  --" frontend/src/index.css  devolvio 59 antes, y el mismo numero después que se agrego la barra de progreso. Crear el componente no añadió nada.
+El comando grep -c "^  --" frontend/src/index.css devolvio 59 valores con nombre antes y después que se agregó la barra de progreso. Crear el componente no añadió nada. Asimismo, los colores a pelo eran 1 antes y 1 después.
 
 ## 2. Qué crees que decidió eso.
 
