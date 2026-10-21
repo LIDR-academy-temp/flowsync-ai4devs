@@ -1,5 +1,6 @@
 import { ApiProperty } from '@foadonis/openapi/decorators'
 import { TASK_STATUSES } from '#models/task'
+import { COMMENT_BODY_MAX_LENGTH } from '#validators/comment'
 
 /**
  * Esquemas reutilizables del documento OpenAPI.
@@ -149,6 +150,34 @@ export class TrashedTask {
 }
 
 /**
+ * Un comentario sobre una tarea (`CommentTransformer`). El autor viaja con la
+ * misma forma que el responsable de una tarea, sin email, y por eso reutiliza
+ * `TaskAssignee`. No lleva `updatedAt`: un comentario no se edita.
+ */
+export class Comment {
+  @ApiProperty({ type: 'number', example: 1 })
+  id!: number
+
+  @ApiProperty({
+    type: 'string',
+    minLength: 1,
+    maxLength: COMMENT_BODY_MAX_LENGTH,
+    example: 'Falta el informe del trimestre',
+    description: 'Ya recortado: sin espacios en los extremos.',
+  })
+  body!: string
+
+  @ApiProperty({
+    type: () => TaskAssignee,
+    description: 'La cuenta dueña del token con que se envió.',
+  })
+  author!: TaskAssignee
+
+  @ApiProperty({ type: 'string', format: 'date-time' })
+  createdAt!: string
+}
+
+/**
  * El envoltorio `{ "data": ... }` que `providers/api_provider.ts` pone a toda
  * respuesta. Se documenta como parte de la forma porque el cliente lo tiene que
  * desenvolver.
@@ -176,6 +205,16 @@ export class TrashedTaskResponse {
 export class TrashedTaskListResponse {
   @ApiProperty({ type: () => [TrashedTask] })
   data!: TrashedTask[]
+}
+
+export class CommentResponse {
+  @ApiProperty({ type: () => Comment })
+  data!: Comment
+}
+
+export class CommentListResponse {
+  @ApiProperty({ type: () => [Comment] })
+  data!: Comment[]
 }
 
 /**
@@ -222,6 +261,22 @@ export class SetTaskDueDateBody {
       'Día de referencia con el que se resuelve `isOverdue` en la respuesta. Obligatorio y sin valor por defecto.',
   })
   today!: string
+}
+
+/**
+ * Cuerpo del alta de un comentario. El texto es el único dato que se acepta: el
+ * autor lo pone el sistema y se ignora aunque venga en la petición.
+ */
+export class CreateCommentBody {
+  @ApiProperty({
+    type: 'string',
+    minLength: 1,
+    maxLength: COMMENT_BODY_MAX_LENGTH,
+    example: 'Falta el informe del trimestre',
+    description:
+      'Se recortan los espacios de los extremos antes de comprobar la longitud: un texto de solo espacios se rechaza igual que uno vacío, y pasarse de 500 es un error, nunca un recorte. Tampoco se admite repetir, tal cual, el último comentario propio en la misma tarea.',
+  })
+  body!: string
 }
 
 /**
