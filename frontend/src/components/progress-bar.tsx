@@ -71,6 +71,7 @@ export function ProgressBar({
       </div>
       <Progress
         value={percent}
+        className="bg-[#2563eb]/20 [&_[data-slot=progress-indicator]]:bg-[#2563eb]"
         aria-labelledby={labelId}
         getValueLabel={() => valueText}
       />
