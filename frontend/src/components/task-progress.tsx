@@ -34,7 +34,7 @@ export function TaskProgress({ done, total }: TaskProgressProps) {
         aria-valuetext={`${done} de ${total} tareas hechas`}
       >
         <div
-          className="bg-primary h-full rounded-full transition-[width] duration-300"
+          className="bg-progress h-full rounded-full transition-[width] duration-300"
           style={{ width: `${percent}%` }}
         />
       </div>
