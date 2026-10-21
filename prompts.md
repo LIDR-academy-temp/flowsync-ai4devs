@@ -27,8 +27,9 @@ se queda para siempre en «Comprobando si hay tareas hechas…».
 Cambia el color de la barra de progreso por un azul #2563eb, escrito directamente en el componente.
 ```
 
-**Qué salió:** lo hizo tal cual: cambió `bg-primary` por `bg-[#2563eb]` en el relleno de la barra.
-Nada más guardar, el hook `color-a-pelo.sh` saltó con el aviso (`task-progress.tsx:44: #2563eb`) y le recordó
-que el color debe salir de `index.css`; no bloqueó, así que el literal se quedó porque lo pedí explícitamente.
-Avisó de que el fondo de la barra sigue en `bg-primary/15` (gris, no azul) y de que lo coherente con la
-convención sería un valor con nombre en `index.css`.
+**Qué salió:** la primera vez (antes de la regla de interfaz en `CLAUDE.md`) lo hizo tal cual: `bg-[#2563eb]` en el componente
+(`acf1846`), el hook `color-a-pelo.sh` avisó (`task-progress.tsx:44: #2563eb`) sin bloquear, y el literal se quedó.
+Relanzado ya con la regla, no lo dejó pasar en silencio: se paró a preguntar cuál mandaba, si el prompt («escrito
+directamente en el componente») o la regla («fuera de `index.css` no se escriben literales»). Elegí la regla: el mismo
+azul quedó como `--progress: #2563eb` en `index.css` (claro y oscuro) y el componente usa `bg-progress`, con el fondo
+a juego en `bg-progress/15` (antes gris). El hook ya no avisa.
