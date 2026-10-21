@@ -7,6 +7,7 @@ import { useAuth } from '@/auth/use-auth'
 import { useAuthForm } from '@/auth/use-auth-form'
 import { TaskItem } from '@/components/task-item'
 import { TaskFilter } from '@/components/task-filter'
+import { TaskProgress } from '@/components/task-progress'
 import { FieldError } from '@/components/field-error'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
@@ -53,6 +54,13 @@ export function TasksPage() {
   // Tareas con un cambio de estado en vuelo, para no encadenar dos clics
   // sobre la misma fila antes de saber si el primero cuajó.
   const [pendingIds, setPendingIds] = useState<ReadonlySet<number>>(new Set())
+  // El estado de todas las tareas del equipo, sin filtro, para la barra de
+  // progreso. Va aparte de `tasks` porque la lista está acotada —y por defecto
+  // deja fuera justo las hechas—, y el avance tiene que contarlas todas.
+  const [allStatuses, setAllStatuses] = useState<ReadonlyMap<
+    number,
+    TaskStatus
+  > | null>(null)
 
   /**
    * El mismo predicado que aplica el servidor. Tenerlo también aquí es lo que
@@ -66,6 +74,36 @@ export function TasksPage() {
         : DEFAULT_LIST_STATUSES.includes(status),
     [statusParam],
   )
+
+  // El total no depende del filtro, así que se pide una vez por sesión y no
+  // cada vez que cambia la URL. La API no tiene un «todas»: son las abiertas
+  // (la vista por defecto) más las hechas. Si falla, la barra no se pinta —
+  // un avance inventado sería peor que no enseñar ninguno.
+  useEffect(() => {
+    if (!token) return
+
+    let cancelled = false
+    setAllStatuses(null)
+
+    Promise.all([api.listTasks(token), api.listTasks(token, 'done')])
+      .then(([open, done]) => {
+        if (cancelled) return
+        setAllStatuses(
+          new Map([...open, ...done].map((task) => [task.id, task.status])),
+        )
+      })
+      .catch(() => {})
+
+    return () => {
+      cancelled = true
+    }
+  }, [token])
+
+  const trackStatus = useCallback((id: number, status: TaskStatus) => {
+    setAllStatuses((current) =>
+      current ? new Map(current).set(id, status) : current,
+    )
+  }, [])
 
   useEffect(() => {
     if (!token) return
@@ -141,6 +179,7 @@ export function TasksPage() {
       // La API devuelve la lista con las más recientes primero, así que la
       // recién creada entra por arriba. Sin recargar ni volver a pedirla.
       setTasks((current) => [created, ...(current ?? [])])
+      trackStatus(created.id, created.status)
       setTitle('')
 
       // Toda tarea nace pendiente, así que con el filtro puesto en otro estado
@@ -168,6 +207,7 @@ export function TasksPage() {
             item.id === task.id ? { ...item, status } : item,
           ) ?? current,
       )
+      trackStatus(task.id, status)
       setPendingIds((current) => new Set(current).add(task.id))
       setStatusError(null)
       setNotice(
@@ -185,7 +225,9 @@ export function TasksPage() {
             current?.map((item) => (item.id === updated.id ? updated : item)) ??
             current,
         )
+        trackStatus(updated.id, updated.status)
       } catch (error: unknown) {
+        trackStatus(task.id, previousStatus)
         setTasks(
           (current) =>
             current?.map((item) =>
@@ -206,7 +248,7 @@ export function TasksPage() {
         })
       }
     },
-    [matchesFilter, pendingIds, token],
+    [matchesFilter, pendingIds, token, trackStatus],
   )
 
   // Lo que se pinta no es lo que trajo la API sino lo que sigue cumpliendo el
@@ -217,6 +259,10 @@ export function TasksPage() {
   // afirmarlo con un `as`: lo que viene de la URL no merece ese voto de
   // confianza, y aquí es donde se nota si no lo era.
   const activeStatus = TASK_STATUSES.find((status) => status === statusParam)
+
+  const progressDone = allStatuses
+    ? [...allStatuses.values()].filter((status) => status === 'done').length
+    : 0
 
   return (
     <div className="bg-muted/40 min-h-svh">
@@ -292,6 +338,12 @@ export function TasksPage() {
             <InfoIcon />
             <AlertDescription>{notice}</AlertDescription>
           </Alert>
+        )}
+
+        {/* Con cero tareas no hay avance que medir: el estado vacío de abajo
+            ya lo cuenta mejor que una barra a 0 de 0. */}
+        {allStatuses && allStatuses.size > 0 && (
+          <TaskProgress done={progressDone} total={allStatuses.size} />
         )}
 
         {visibleTasks === undefined ? (

@@ -22,14 +22,52 @@ Borra el ejemplo de abajo cuando escribas el primero.
 
 ## Prompt 1
 
-**Modelo:** Opus 1M xHigh
+**Modelo:** Opus 5.5 High
 **Herramienta:** Claude Code
 
 ```
-Este es el ejemplo. Bórralo.
-
-El prompt va aquí dentro, entero y con sus saltos de línea,
-para que se sepa dónde empieza y dónde acaba.
+En la pantalla de tareas, crea una barra de progreso que muestre el avance de las tareas done/completadas vs el total. Insertala arriba del listado de tareas.
 ```
 
-**Qué salió:** (opcional, una línea) funcionó a la primera / tuve que insistir / me inventó una ruta que no existe.
+**Qué salió:** (opcional, una línea) funcionó a la primera, los cambios quedaron en `frontend/src/components/task-progress.tsx` y `frontend/src/pages/tasks-page.tsx` en mi rama interfaz-vmrr.         
+
+
+
+## Prompt 2
+
+**Modelo:** Opus 5.5 High
+**Herramienta:** Claude Code
+
+```
+Reinicia el backend y el frontend para observar los cambios.
+```
+
+**Qué salió:** (opcional, una línea) funcionó a la primera.
+
+
+## Prompt 3
+**Modelo:** Opus 5.5 High
+**Herramienta:** Claude Code
+
+```
+Crea y configura lo siguiente:
+
+1. Crea un hook determinista(un script de bash -.sh-) en .claude/hooks/color-a-pelo.sh que revise y AVISE cuando en front/src se escriba un color a pelo( valor hexadeciumal,hsl, oklch(), clases crudas de Tailwind, o algun otro formato), excluye frontend/src/index.css que es el unico lugar donde se pueden definir asi. Registralo en .claude/settings.json. 
+
+
+2. Crea una regla en el CLAUDE.md,que especifique de donde sale una nueva pieza de UI del frontend (frontend/), revisa el apartado de ##Frontend en tu CLAUDE.MD para que la redactes con mas detalles y certeza.
+
+``` 
+
+**Qué salió:** (opcional, una línea) Creo el script para el hook y lo configuro, creo una nueva regla de proceso en el claude.md para colocar las nuevas piezas de UI y cuando reutilizar o ampliar variantes de las existentes.
+
+## Prompt 3
+**Modelo:** Opus 5.5 High
+**Herramienta:** Claude Code
+
+```
+Cambia el color de la barra a azul (#0000FF).
+``` 
+
+
+**Qué salió:** (opcional, una línea) : Declaro que segun la nueva regla azul no puede ir a pelo en el componente. Y lo añadio en index.css la barra uso ese azul. Ademas el hook no se disparo porque excluye index.css

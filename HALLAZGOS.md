@@ -6,21 +6,18 @@ porque lo que se discute en el directo es dónde te chocaste.
 
 Escribe **una sola línea por punto**, con tus palabras y con lo que mediste, no con lo que suponías.
 
-## 1. Las filas que cambian y la rama
+## 1. Donde aterrizo la pieza y con que valores
+- La nueva pieza quedado fuera del catalogo en frontend/src/components/task-progress.tsx y reutilizo los colores ya declarado --muted
 
-Cuántas filas cambian de valor en tu cambio de esquema, medido con una consulta, y en qué rama del
-árbol de reversibilidad cae. Si tu migración no toca datos, dilo tal cual: también es una respuesta.
+## 2. Que crees que decidio esto
 
--
-
-## 2. Lo que la batería de pruebas no podía ver
-
-Una cosa que la batería de pruebas no podía ver. Si no encontraste ninguna, escribe qué buscaste y dónde.
+- Decidio usar los colores ya definidos en lugar de inventarse uno nuevo,siguiendo la regla blanda en el claude.md definida en ##FRONTEND: "los tokens viven en `src/index.css`)"
+La nueva barra decidio meterla en frontend/src/components/ porque se trata de un componente formado de primitivos de la UI ya que no existe un solo elemento como un elemento boton `<button>` que haga todo el trabajo.
 
 -
 
-## 3. Tu duda
+## 3. Que aviso el guardarrail y que no pudo ver
 
-De qué dudaste, o qué no pudiste comprobar.
+- El guardarrail aviso que debido a las nuevas reglas en el claude.md no se pueden usar valores brutos para los colores y que habria que definirlos en el `src/index.css` y usarlos asi, lo que hizo sin falla.
+- El hook no se pudo validar debido al cumplimiento de la regla anterior(metio el cambio en `src/index.css` donde no revisa), y desconoce las reglas blandas del claude.md sin embargo esta ahi por si no se cumplen avisara si un color se usa en bruto/valor literal.
 
--
