@@ -7,6 +7,7 @@ import { useAuth } from '@/auth/use-auth'
 import { useAuthForm } from '@/auth/use-auth-form'
 import { TaskItem } from '@/components/task-item'
 import { TaskFilter } from '@/components/task-filter'
+import { TaskProgress } from '@/components/task-progress'
 import { FieldError } from '@/components/field-error'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
@@ -292,6 +293,13 @@ export function TasksPage() {
             <InfoIcon />
             <AlertDescription>{notice}</AlertDescription>
           </Alert>
+        )}
+
+        {/* Fuera de la rama de la lista a propósito: cuando la última tarea
+            abierta se marca como hecha, la lista se queda vacía y es justo
+            entonces cuando la barra tiene que verse llena. */}
+        {tasks && tasks.length > 0 && !invalidFilter && (
+          <TaskProgress tasks={tasks} />
         )}
 
         {visibleTasks === undefined ? (
