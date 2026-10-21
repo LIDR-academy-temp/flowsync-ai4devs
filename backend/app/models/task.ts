@@ -64,16 +64,40 @@ export default class Task extends TaskSchema {
    * correctas, y que una tarea pase a vencida sola al cambiar el día sin que
    * nadie la haya tocado: no hay nada congelado, se decide al mirar.
    *
-   * Se compara texto contra texto porque dos fechas ISO comparadas así **son**
-   * la comparación de días del calendario: no hay hora, ni huso, ni instante
-   * intermedio donde se cuele un día de más.
+   * La comparación es de texto contra texto, `AAAA-MM-DD` contra `AAAA-MM-DD`:
+   * así ordenadas, dos fechas ISO **son** la comparación de días del calendario,
+   * sin hora, ni huso, ni instante intermedio donde se cuele un día de más. Pero
+   * `dueDate` no siempre llega como texto, aunque el esquema generado lo declare
+   * `string`: recién asignada desde el validador sí lo es, y leída de la base no,
+   * porque el driver `pg` convierte la columna `date` en un `Date` de JS a
+   * medianoche **local**. Comparar ese `Date` con el texto daba siempre `false`,
+   * y ninguna tarea leída de la base salía vencida. Por eso primero se reduce a
+   * su día con `toCalendarDay`, y solo después se compara.
    *
    * Esta es la única definición de «vencida» del sistema. No se reimplementa en
    * ninguna otra capa, y en particular el frontend nunca compara fechas.
    */
   isOverdueOn(referenceDay: string): boolean {
     if (this.dueDate === null) return false
+    if (this.status === 'done') return false
 
-    return this.dueDate < referenceDay
+    return toCalendarDay(this.dueDate) < referenceDay
   }
+}
+
+/**
+ * El día del calendario de una fecha de vencimiento, en `AAAA-MM-DD`.
+ *
+ * El `Date` que entrega `pg` para una columna `date` está a medianoche local, así
+ * que el día se lee con los getters locales y no con `toISOString()`, que lo
+ * pasaría a UTC y en un huso al oeste de Greenwich lo movería al día anterior.
+ */
+function toCalendarDay(dueDate: string | Date): string {
+  if (!(dueDate instanceof Date)) return dueDate
+
+  const year = dueDate.getFullYear()
+  const month = String(dueDate.getMonth() + 1).padStart(2, '0')
+  const day = String(dueDate.getDate()).padStart(2, '0')
+
+  return `${year}-${month}-${day}`
 }
