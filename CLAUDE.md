@@ -142,7 +142,7 @@ El stack va deliberadamente en versiones muy recientes: **AdonisJS 7, Lucid 22, 
 
 ## Frontend
 
-El typecheck vive dentro de `npm run build`; el lint es **oxlint** (`.oxlintrc.json`), no eslint. El formateo es Prettier (`.prettierrc.json`: `semi: false`, `singleQuote: true`, para respetar el estilo ya existente); un hook `PostToolUse` en `.claude/settings.json` lo corre automáticamente sobre cada fichero de `frontend/` que Claude edite. No hay runner de tests instalado.
+El typecheck vive dentro de `npm run build`; el lint es **oxlint** (`.oxlintrc.json`), no eslint. El formateo es Prettier (`.prettierrc.json`: `semi: false`, `singleQuote: true`, para respetar el estilo ya existente); un hook `PostToolUse` en `.claude/settings.json` lo corre automáticamente sobre cada fichero de `frontend/` que Claude edite. Otro hook `PostToolUse`, `.claude/hooks/color-a-pelo.sh`, avisa (no deshace el cambio) cuando un fichero de `frontend/src/` que no sea `index.css` lleva un color a pelo: hexadecimal, `rgb()`/`hsl()`/`oklch()` y demás funciones de color, clases de la paleta de Tailwind (`bg-red-500`, `text-white`…) o un color con nombre en un `style`. No hay runner de tests instalado.
 
 Stack: **Tailwind v4** (plugin de Vite, sin `tailwind.config.js`; los tokens viven en `src/index.css`), **shadcn/ui** (`components.json`, componentes generados en `src/components/ui/` — se traen con `npx shadcn@latest add <componente>` y no se editan a mano) y **react-router**. El alias `@/*` → `src/*` está declarado a la vez en `tsconfig.app.json` (sin `baseUrl`, deprecado en TS 6) y en `vite.config.ts`.
 
@@ -154,6 +154,22 @@ Organización de `src/`:
 - `pages/`, `components/` — pantallas y componentes propios.
 
 La URL de la API sale de `VITE_API_URL` (ver `frontend/.env.example`); por defecto `http://localhost:3333`.
+
+### De dónde sale una pieza de UI nueva
+
+Antes de escribir una pieza de UI en `frontend/` (un botón, una tarjeta, un diálogo, una barra de progreso, un desplegable…), se busca por este orden y se usa **la primera que exista**. Bajar un escalón exige poder decir por qué no sirve el anterior.
+
+1. **Un primitivo que ya está en `src/components/ui/`** (hoy: `alert`, `button`, `card`, `input`, `label`). Se usa tal cual, con sus variantes (`variant`, `size`, definidas con `class-variance-authority`) y ajustando con `className`, que se combina con `cn()` de `@/lib/utils` para que `tailwind-merge` resuelva los conflictos.
+2. **Un componente propio que ya está en `src/components/`** (`auth-layout`, `field-error`, `full-screen-loader`, `task-filter`, `task-item`, `task-progress`…). Se reutiliza o se amplía con una prop, no se copia.
+3. **Un componente del catálogo de shadcn/ui**. Se trae desde `frontend/` con `npx shadcn@latest add <componente>`, que lee `components.json` (estilo `new-york`, color base `neutral`, variables CSS) y lo deja en `src/components/ui/`, instalando las dependencias de Radix que pida. El fichero generado se commitea **sin tocarlo**. Si hace falta otro comportamiento o aspecto, se envuelve en un componente propio de `src/components/`. Todo lo interactivo con accesibilidad propia (diálogo, menú, popover, tooltip, pestañas, select…) sale de aquí y no se construye a mano.
+4. **Solo si ninguno de los tres sirve, un componente propio nuevo** en `src/components/<nombre-en-kebab>.tsx`, con export nombrado en PascalCase (`export function TaskProgress`). Se compone con los primitivos de `ui/` y con utilidades de Tailwind. Si solo lo usa una pantalla y es pequeño, puede vivir en su fichero de `pages/`; en cuanto lo use una segunda, se pasa a `components/`.
+
+Valga el escalón que valga:
+
+- **Colores, solo de los tokens de `src/index.css`.** Se usan las utilidades que salen de ellos (`bg-background`, `text-foreground`, `bg-primary`, `text-primary-foreground`, `bg-muted`, `text-muted-foreground`, `bg-card`, `border-border`, `text-destructive`, `ring-ring`…), con opacidad si hace falta (`bg-primary/10`). Ni hexadecimales, ni funciones de color, ni la paleta de Tailwind (`bg-blue-500`, `text-white`), ni colores en `style`. Si falta un token, se añade en `src/index.css` en los tres sitios a la vez: la variable en `:root`, la variable en `.dark` y su `--color-<nombre>: var(--<nombre>)` en `@theme inline`. Así, por ejemplo, el modo oscuro funciona sin tocar el componente. El hook `color-a-pelo.sh` avisa si se escapa alguno. Ojo, también salta con `src/components/ui/button.tsx`, que trae `text-white` de fábrica de shadcn: es código generado y no se corrige a mano.
+- **Iconos, de `lucide-react`** (el `iconLibrary` de `components.json`), con el sufijo `Icon` (`Loader2Icon`, `AlertCircleIcon`). No se mezclan otras librerías ni SVG sueltos.
+- **Datos del backend, solo por `src/lib/api.ts`**, y los tipos compartidos en `src/lib/types.ts`. Un componente no llama a `fetch`.
+- **Textos de la interfaz en castellano**, también los `aria-label` y los textos `sr-only`.
 
 ## Reglas de proceso
 - Convenciones de base de datos (única fuente, no se copian aquí): @docs/convenciones/base-de-datos.md
