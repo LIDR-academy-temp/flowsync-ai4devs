@@ -15,6 +15,7 @@
 services:
   db:
     image: pgvector/pgvector:pg17
+    platform: linux/amd64
     environment:
       POSTGRES_USER: flowsync
       POSTGRES_PASSWORD: flowsync
@@ -35,6 +36,7 @@ services:
 
   db-test:
     image: pgvector/pgvector:pg17
+    platform: linux/amd64
     environment:
       POSTGRES_USER: flowsync
       POSTGRES_PASSWORD: flowsync
