@@ -142,7 +142,7 @@ El stack va deliberadamente en versiones muy recientes: **AdonisJS 7, Lucid 22, 
 
 ## Frontend
 
-El typecheck vive dentro de `npm run build`; el lint es **oxlint** (`.oxlintrc.json`), no eslint. El formateo es Prettier (`.prettierrc.json`: `semi: false`, `singleQuote: true`, para respetar el estilo ya existente); un hook `PostToolUse` en `.claude/settings.json` lo corre automáticamente sobre cada fichero de `frontend/` que Claude edite. No hay runner de tests instalado.
+El typecheck vive dentro de `npm run build`; el lint es **oxlint** (`.oxlintrc.json`), no eslint. El formateo es Prettier (`.prettierrc.json`: `semi: false`, `singleQuote: true`, para respetar el estilo ya existente); un hook `PostToolUse` en `.claude/settings.json` lo corre automáticamente sobre cada fichero de `frontend/` que Claude edite, y otro (`color-a-pelo.sh`) avisa de los colores a pelo (ver «De dónde sale una pieza de interfaz nueva»). No hay runner de tests instalado.
 
 Stack: **Tailwind v4** (plugin de Vite, sin `tailwind.config.js`; los tokens viven en `src/index.css`), **shadcn/ui** (`components.json`, componentes generados en `src/components/ui/` — se traen con `npx shadcn@latest add <componente>` y no se editan a mano) y **react-router**. El alias `@/*` → `src/*` está declarado a la vez en `tsconfig.app.json` (sin `baseUrl`, deprecado en TS 6) y en `vite.config.ts`.
 
@@ -154,6 +154,21 @@ Organización de `src/`:
 - `pages/`, `components/` — pantallas y componentes propios.
 
 La URL de la API sale de `VITE_API_URL` (ver `frontend/.env.example`); por defecto `http://localhost:3333`.
+
+### De dónde sale una pieza de interfaz nueva
+
+Antes de escribir cualquier pieza de interfaz (un botón, una barra, una tarjeta, un aviso, un campo…), se busca en este orden y se usa la primera que sirva, aunque nadie lo pida:
+
+1. **El catálogo, `src/components/ui/`.** Si ya hay una pieza que lo hace, se usa tal cual, con las variantes y los tamaños que declara (están en su `cva`; mira `button.tsx`). No se redibuja con `div` y no se le pisa el aspecto desde `className`.
+2. **shadcn/ui.** Si el catálogo no la tiene y shadcn sí, se trae con `npx shadcn@latest add <componente>` y entra en `src/components/ui/`. Esa carpeta solo crece así: nunca se escribe ni se copia una pieza a mano ahí dentro.
+3. **Una composición en `src/components/`.** Una pieza propia de FlowSync se monta componiendo piezas del catálogo, como `progress-bar.tsx` envuelve a `ui/progress`.
+4. **Una pieza que no existe en ningún sitio** no se dibuja de cero sin decirlo: se para, se cuenta qué se buscó y por qué no sirve nada de lo anterior, y se espera a que la persona lo apruebe.
+
+Los valores (colores, radios) salen de los nombres de `src/index.css`: `bg-primary`, `text-muted-foreground`, `border-border`, `var(--destructive)`… Si falta uno, se declara primero allí con nombre (en `:root` y en `.dark`) y se usa por su nombre. Fuera de `index.css` no se escribe un hexadecimal, un `rgb()`/`oklch()` ni una clase de paleta cruda (`bg-blue-600`, `text-white`).
+
+Al cerrar, la respuesta dice de dónde salió cada pieza nueva: catálogo, shadcn, composición o nueva aprobada.
+
+**Por qué va aquí y no en un script.** El hook `PostToolUse` `.claude/hooks/color-a-pelo.sh` avisa (no bloquea) de cada color a pelo que se escriba en `frontend/src/` fuera de `index.css`, pero eso es solo la parte mecánica. Si la pieza se reutilizó o se dibujó de cero, si aterrizó dentro o fuera del catálogo y si el nombre elegido es el que toca, no lo ve ningún script: lo cubre esta regla. Si el hook avisa, se cambia el valor por su nombre; no se reescribe el valor para que deje de avisar.
 
 ## Reglas de proceso
 - Convenciones de base de datos (única fuente, no se copian aquí): @docs/convenciones/base-de-datos.md
