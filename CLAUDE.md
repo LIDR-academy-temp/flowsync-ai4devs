@@ -155,6 +155,14 @@ Organización de `src/`:
 
 La URL de la API sale de `VITE_API_URL` (ver `frontend/.env.example`); por defecto `http://localhost:3333`.
 
+### De dónde sale una pieza de interfaz nueva
+
+- Antes de escribir un elemento de interfaz, busca en `frontend/src/components/ui/` si ya hay una pieza que lo resuelva, y reutilízala.
+- Si no existe y es genérica (no está ligada a una pantalla), créala en `frontend/src/components/ui/` con el estilo de las piezas que ya hay allí, y úsala desde la pantalla.
+- Los colores, los radios y demás valores visuales salen de los valores con nombre de `frontend/src/index.css`: fuera de ese archivo no se escriben literales.
+
+Esta regla está escrita aquí porque un script no puede comprobar si una pieza se reutilizó o se dibujó de nuevo. Los literales de color sí los vigila el hook `color-a-pelo.sh`, pero solo avisa.
+
 ## Reglas de proceso
 - Convenciones de base de datos (única fuente, no se copian aquí): @docs/convenciones/base-de-datos.md
 - Cualquier tarea de backend se hace con la skill `backend-feature` (`.claude/skills/backend-feature/SKILL.md`), sin que nadie tenga que pedirlo: plan por capas y parada para aprobarlo, tests de contrato con el subagente `test-writer`, rojo, tests congelados por su `shasum`, implementación con el subagente `implementer` hasta el verde, y cierre con `dbhub`, `openapi:check` y Postman.
