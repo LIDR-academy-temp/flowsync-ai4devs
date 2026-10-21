@@ -89,7 +89,7 @@ hallazgos=()
 muestras() {
   printf '%s\n' "$texto" \
     | grep -oE "$1" 2>/dev/null \
-    | sed -E 's/[][[:space:]";,:{}<>\\]+$//' \
+    | sed -E "s/[]['\"[:space:];,:{}<>\\\\]+\$//" \
     | grep -E "${2:-.}" \
     | sort -u | head -3 | paste -sd, - | sed 's/,/, /g'
 }
