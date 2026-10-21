@@ -35,8 +35,15 @@ export function TaskProgress({ tasks }: TaskProgressProps) {
       </div>
       {/* El valor va también en texto para quien use un lector de pantalla:
           el porcentaje a secas diría «25 %» sin decir de qué. */}
+      {/* El relleno va con `bg-blue-600` a pelo, pedido así de forma expresa.
+          Es un color de paleta cruda y no un token del tema, así que se sale
+          de la regla de interfaz de CLAUDE.md y el hook
+          `sin-colores-literales.sh` avisa de esta línea. El literal se pone
+          aquí, sobre el indicador, y no editando `ui/progress.tsx`, que es
+          generado por shadcn y no se toca a mano. */}
       <Progress
         value={percentage}
+        className="[&_[data-slot=progress-indicator]]:bg-blue-600"
         aria-label="Tareas hechas en esta vista"
         getValueLabel={() =>
           `${done} de ${tasks.length} tareas hechas (${percentage}%)`
