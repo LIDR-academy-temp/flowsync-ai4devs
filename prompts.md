@@ -22,14 +22,40 @@ Borra el ejemplo de abajo cuando escribas el primero.
 
 ## Prompt 1
 
-**Modelo:** Opus 1M xHigh
+**Modelo:** Sonnet 5 1M High
 **Herramienta:** Claude Code
 
 ```
-Este es el ejemplo. Bórralo.
-
-El prompt va aquí dentro, entero y con sus saltos de línea,
-para que se sepa dónde empieza y dónde acaba.
+Agrega una barra de progreso arriba de la lista en la pantalla de tareas que muestre qué porcentaje de los elementos visibles está completado.
 ```
 
-**Qué salió:** (opcional, una línea) funcionó a la primera / tuve que insistir / me inventó una ruta que no existe.
+**Qué salió:** El componente nuevo `frontend/src/components/task-progress.tsx` quedó fuera de `src/components/ui/`.
+
+---
+
+## Prompt 2
+
+**Modelo:** Sonnet 5 1M High
+**Herramienta:** Claude Code
+
+```
+Crea el sistema de supervisión para el proyecto con dos elementos:
+1. Un hook en .claude/hooks/ (registrado en .claude/settings.json) que alerte —sin bloquear— cuando se escriban colores literales (hardcoded) dentro de frontend/src/, excluyendo a frontend/src/index.css (puedes tomar como modelo el script existente en .claude/hooks/migracion-con-vuelta.sh).
+2. Una regla en el archivo CLAUDE.md del repositorio que establezca claramente de dónde deben provenir los nuevos componentes de interfaz.
+```
+
+**Qué salió:** Se crearon y probaron el hook `sin-colores-literales.sh` y la regla de `CLAUDE.md`.
+
+
+---
+
+## Prompt 3
+
+**Modelo:** Sonnet 5 1M High
+**Herramienta:** Claude Code
+
+```
+Modifica el color de la barra de progreso que acabamos de crear para que use un color azul escrito directamente en el código (*hardcoded*), sin utilizar las variables del archivo de estilos.
+```
+
+**Qué salió:** El hook se activó y se hizo el cambio; sin embargo, Claude avisó que ese cambio se había hecho porque se pidió directamente y es el usuario quien decide si el cambio entra o no en el próximo commit.
