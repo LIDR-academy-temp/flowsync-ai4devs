@@ -11,8 +11,8 @@ type TaskProgressProps = {
  *
  * Es un `role="progressbar"` nativo y no un componente de shadcn a propósito:
  * no hay nada que accionar, solo leer, y el lector de pantalla recibe la misma
- * frase que se ve. El relleno va en `primary` sobre `muted`, los mismos tokens
- * que el resto de la pantalla, así que en oscuro sigue leyéndose.
+ * frase que se ve. El relleno va en el token `progress` sobre `muted`: el azul
+ * vive en `index.css` con su paso claro y su paso oscuro, no aquí.
  */
 export function TaskProgress({ done, total }: TaskProgressProps) {
   // Sin tareas no hay progreso que medir: cero de cero no es «0 %», es nada.
@@ -39,7 +39,7 @@ export function TaskProgress({ done, total }: TaskProgressProps) {
         className="bg-muted h-2 w-full overflow-hidden rounded-full"
       >
         <div
-          className="bg-primary h-full rounded-full transition-[width] duration-300 motion-reduce:transition-none"
+          className="bg-progress h-full rounded-full transition-[width] duration-300 motion-reduce:transition-none"
           style={{ width: `${percent}%` }}
         />
       </div>

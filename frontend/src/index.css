@@ -26,6 +26,7 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  --color-progress: var(--progress);
 }
 
 :root {
@@ -48,6 +49,8 @@
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
   --ring: oklch(0.708 0 0);
+  /* Relleno de la barra de progreso. En claro, el azul #1D4ED8 (blue-700). */
+  --progress: oklch(0.488 0.243 264.376);
 }
 
 .dark {
@@ -69,6 +72,8 @@
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.556 0 0);
+  /* El mismo azul, un paso más claro (blue-500) para que destaque sobre la pista oscura. */
+  --progress: oklch(0.623 0.214 259.815);
 }
 
 @layer base {
