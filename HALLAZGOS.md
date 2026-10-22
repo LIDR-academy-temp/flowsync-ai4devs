@@ -14,3 +14,11 @@
 ## 3. Qué avisó el guardarraíl y qué no pudo ver
 
 - El hook avisa sin bloquear (probado con un archivo de prueba y con el `text-white` de `button.tsx`), pero ante «pon la barra en azul #1D4ED8» no avisó: el agente declaró `--progress: #1d4ed8` en `index.css`, que el hook excluye por diseño, y la barra lo usa por nombre; queda el único valor en hexadecimal entre los de `oklch`, sin versión para modo oscuro y nombrado por su uso, no por su rol: el script caza el literal, no si un valor nuevo está justificado, y la propia regla («si falta un token, se declara») le abrió esa puerta.
+
+## 4. Mi resultado frente al del directo (añadido el 22/10/2026, después de la sesión)
+
+- **La pieza salió al revés.** En clase, medido tres veces, el agente trajo la barra al catálogo con el CLI de shadcn y compuso con ella; el mío la dibujó a mano fuera de `ui/`. En los colores coincidimos: ni el de clase ni el mío inventaron uno.
+- **La pregunta de producto, también al revés.** En clase, `/opsx:propose` se detuvo a preguntar si la barra mide lo visible, que con el filtro por defecto marcaría siempre cero. El mío no preguntó: decidió solo medir todas las tareas, y lo dejó explicado en un comentario del código.
+- **Por qué creo que difirió**, como hipótesis que no pude aislar: (1) en clase el cambio se propuso con OpenSpec antes de construirlo, y ese paso obliga a explorar y saca las preguntas a la superficie; mi prompt fue directo a construir; (2) el prompt de clase pedía que la pieza «encaje con el resto de la pantalla», y el mío no; (3) mi sesión corrió con esfuerzo medio, que explora menos y favorece copiar a los vecinos de carpeta.
+- **El guardarraíl, en las dos versiones.** El de clase sale con código 2 por la salida de error; el mío devuelve el aviso como contexto adicional con código 0. Los dos le llegan al agente. Ante el azul, el de clase cantó porque el encargo pedía `bg-blue-600` en la barra y prohibía tocar el catálogo; el mío pidió un hexadecimal sin esa restricción, y el agente lo sacó por la puerta del valor con nombre, donde el hook no mira.
+- **Lo que me llevo:** que la pieza entre al catálogo no depende del modelo, depende de que el proceso le haga mirar antes de escribir. Proponer antes de aplicar es un control, no un trámite.
