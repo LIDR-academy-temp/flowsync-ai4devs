@@ -18,7 +18,16 @@ export function TaskProgress({ done, total }: TaskProgressProps) {
   // Sin tareas no hay progreso que medir: cero de cero no es «0 %», es nada.
   if (total === 0) return null
 
-  const percent = Math.round((done / total) * 100)
+  const ratio = done / total
+  // El redondeo no puede mentir en los extremos: «100 %» solo cuando no queda
+  // nada, y «0 %» solo cuando no hay nada hecho. 199 de 200 es 99 %, y 1 de
+  // 300 es 1 %, aunque la aritmética diga otra cosa.
+  const percent =
+    done === 0
+      ? 0
+      : done === total
+        ? 100
+        : Math.min(99, Math.max(1, Math.round(ratio * 100)))
   const summary = `${done} de ${total} ${done === 1 ? 'hecha' : 'hechas'}`
 
   return (
@@ -40,7 +49,9 @@ export function TaskProgress({ done, total }: TaskProgressProps) {
       >
         <div
           className="bg-progress h-full rounded-full transition-[width] duration-300 motion-reduce:transition-none"
-          style={{ width: `${percent}%` }}
+          // El ancho va con la proporción exacta, no con la cifra redondeada:
+          // la barra no se ve llena hasta que lo está.
+          style={{ width: `${ratio * 100}%` }}
         />
       </div>
     </div>

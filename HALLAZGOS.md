@@ -4,7 +4,8 @@ Aquí van **las tres líneas** del ejercicio, una por cada punto de abajo. Es lo
 traer hecho: una parte A a medias con estas tres líneas escritas vale más que lo contrario, porque lo
 que se discute en el directo es dónde te chocaste.
 
-Escribe **una sola línea por punto**, con tus palabras y con lo que mediste, no con lo que suponías.
+Un punto por línea, con lo que se midió y no con lo que se suponía. Aquí cada línea es un párrafo:
+los números y los porqués no cabían en menos.
 
 Los recuentos de abajo se hicieron con la misma regla que aplica el hook (`.claude/hooks/colores-a-pelo.sh`:
 hexadecimales, `rgb()`/`oklch()` y compañía, y clases de paleta cruda de Tailwind) sobre `frontend/src/`
@@ -19,8 +20,8 @@ algo que ya existía.
   `src/components/ui/` tenía 5 piezas antes (alert, button, card, input, label) y sigue teniendo 5,
   cuando shadcn tiene un `progress` que no se trajo; el componente dibuja la barra con dos `div` y un
   `role="progressbar"` sin reutilizar ninguna pieza con nombre, pero **todos sus valores son tokens
-  de `index.css`** (`bg-primary` sobre `bg-muted`, `text-muted-foreground`), así que los colores a
-  pelo pasaron de **1 a 1** (el `text-white` de la variante destructiva de `ui/button.tsx`, que ya
+  de `index.css`** (al salir de la parte A, `bg-primary` sobre `bg-muted` y `text-muted-foreground`;
+  desde la parte B el relleno es `bg-progress`), así que los colores a pelo pasaron de **1 a 1** (el `text-white` de la variante destructiva de `ui/button.tsx`, que ya
   venía de shadcn), los valores con nombre de `index.css` se quedaron en 59 tras la parte A y subieron
   a **62** al cerrar la parte B (`--progress` en claro, en oscuro, y `--color-progress` en el tema), y
   el `bg-[#1D4ED8]` pedido a propósito existió en el árbol de trabajo el tiempo de un aviso y nunca
@@ -52,8 +53,11 @@ Un script solo caza lo que es mecánico; lo demás se queda fuera.
   en token (tras lo cual calló); lo que **no pudo ver** es lo que importa en la parte A: que la pieza
   se dibujara a mano existiendo `progress` en el catálogo, que no reutilizara nada de `ui/`, y que el
   azul literal en modo oscuro no tuviera contraste, además de lo mecánico que se le escapa por
-  diseño: colores con nombre (`red`, `steelblue`) en un `style`, un color armado por partes en
-  JavaScript, cualquier fichero cambiado desde Bash (`sed`, `npx shadcn add`) en vez de con
-  `Write`/`Edit`, y el `text-white` que ya estaba en `ui/button.tsx`, que solo señalaría si alguien
-  volviera a tocar ese fichero. Esa mitad va escrita en el `CLAUDE.md` como regla, porque es la que
-  ningún script comprueba.
+  diseño: colores con nombre (`red`, `steelblue`) en un `style` o en un `bg-[red]`, un color armado
+  por partes en JavaScript, cualquier fichero cambiado desde Bash (`sed`, `npx shadcn add`) en vez
+  de con `Write`/`Edit`, y el `text-white` que ya estaba en `ui/button.tsx`, que solo señalaría si
+  alguien volviera a tocar ese fichero; y también lo que ve de más, porque un ancla `#add` o un
+  `#bad` en un comentario tienen forma de hexadecimal. El revisor adversarial, que sí lee intención
+  y no solo forma, encontró después lo que el hook no podía: que el total de la barra contaba una
+  tarea recién creada que no estaba en la vista, y que el redondeo anunciaba «100 %» con 199 de 200.
+  Esa mitad va escrita en el `CLAUDE.md` como regla, porque es la que ningún script comprueba.

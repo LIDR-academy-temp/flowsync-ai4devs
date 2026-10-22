@@ -13,10 +13,12 @@
 #     text-muted-foreground, bg-background…)
 #
 # ESTO ES UNA RED, NO UN CANDADO. Lo que NO ve: colores con nombre («red»,
-# «steelblue») dentro de un `style`, un color armado por partes en JavaScript, o
-# un fichero cambiado por fuera de las herramientas Write/Edit (un `sed` desde
-# Bash, por ejemplo). Solo atrapa el descuido obvio, y lo que pide a cambio es
-# una decisión: o se usa un token, o se añade el token a index.css.
+# «steelblue») dentro de un `style` o de un `bg-[red]`, un color armado por
+# partes en JavaScript, o un fichero cambiado por fuera de las herramientas
+# Write/Edit (un `sed` desde Bash o un `npx shadcn add`, por ejemplo). Y lo que
+# ve de más: un ancla como `href="#add"` o un `#bad` en un comentario tienen
+# forma de hexadecimal y saltan igual. Solo atrapa el descuido obvio, y lo que
+# pide a cambio es una decisión: o se usa un token, o se añade a index.css.
 set -uo pipefail
 
 f=$(jq -r '.tool_response.filePath // .tool_input.file_path // empty')
@@ -46,9 +48,11 @@ shopt -u nocasematch
 [ -f "$f" ] || exit 0
 
 paleta='red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose|slate|gray|zinc|neutral|stone'
-utilidad='bg|text|border|ring|outline|fill|stroke|from|via|to|accent|caret|decoration|divide|placeholder|shadow|inset-ring|ring-offset'
+utilidad='bg|text|border(-[xytrbl])?|ring|outline|fill|stroke|from|via|to|accent|caret|decoration|divide(-[xy])?|placeholder|shadow|inset-ring|ring-offset'
 
-re_hex='#([0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{4}|[0-9a-fA-F]{3})([^[:alnum:]_]|$)'
+# El `#` no puede venir detrás de `&`: una entidad HTML como `&#8212;` tiene
+# cuatro dígitos que también son hexadecimales y no es un color.
+re_hex='(^|[^&])#([0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{4}|[0-9a-fA-F]{3})([^[:alnum:]_]|$)'
 re_funcional='(^|[^[:alnum:]_-])(rgba?|hsla?|oklch|oklab|lab|lch|hwb|color-mix)\('
 re_tailwind="(^|[^[:alnum:]_-])(${utilidad})-((${paleta})-[0-9]{2,3}|white|black)([^[:alnum:]_-]|$)"
 
