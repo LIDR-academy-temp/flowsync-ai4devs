@@ -7,6 +7,7 @@ import { useAuth } from '@/auth/use-auth'
 import { useAuthForm } from '@/auth/use-auth-form'
 import { TaskItem } from '@/components/task-item'
 import { TaskFilter } from '@/components/task-filter'
+import { TaskProgress } from '@/components/task-progress'
 import { FieldError } from '@/components/field-error'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
@@ -323,16 +324,19 @@ export function TasksPage() {
             </AlertDescription>
           </Alert>
         ) : visibleTasks.length > 0 ? (
-          <ul className="bg-background divide-y rounded-lg border">
-            {visibleTasks.map((task) => (
-              <TaskItem
-                key={task.id}
-                task={task}
-                onChangeStatus={handleChangeStatus}
-                isBusy={pendingIds.has(task.id)}
-              />
-            ))}
-          </ul>
+          <>
+            <TaskProgress tasks={visibleTasks} />
+            <ul className="bg-background divide-y rounded-lg border">
+              {visibleTasks.map((task) => (
+                <TaskItem
+                  key={task.id}
+                  task={task}
+                  onChangeStatus={handleChangeStatus}
+                  isBusy={pendingIds.has(task.id)}
+                />
+              ))}
+            </ul>
+          </>
         ) : statusParam ? (
           // Segundo final: el filtro es válido y ahora mismo no hay nada en
           // ese estado. Es una respuesta legítima, no un fallo.
