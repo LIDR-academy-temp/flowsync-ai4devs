@@ -144,7 +144,7 @@ El stack va deliberadamente en versiones muy recientes: **AdonisJS 7, Lucid 22, 
 
 El typecheck vive dentro de `npm run build`; el lint es **oxlint** (`.oxlintrc.json`), no eslint. El formateo es Prettier (`.prettierrc.json`: `semi: false`, `singleQuote: true`, para respetar el estilo ya existente); un hook `PostToolUse` en `.claude/settings.json` lo corre automáticamente sobre cada fichero de `frontend/` que Claude edite. No hay runner de tests instalado.
 
-Stack: **Tailwind v4** (plugin de Vite, sin `tailwind.config.js`; los tokens viven en `src/index.css`), **shadcn/ui** (`components.json`, componentes generados en `src/components/ui/` — se traen con `npx shadcn@latest add <componente>` y no se editan a mano) y **react-router**. El alias `@/*` → `src/*` está declarado a la vez en `tsconfig.app.json` (sin `baseUrl`, deprecado en TS 6) y en `vite.config.ts`.
+Stack: **Tailwind v4** (plugin de Vite, sin `tailwind.config.js`; los tokens viven en `src/index.css`), **shadcn/ui** (`components.json`, catálogo de piezas en `src/components/ui/` — las de shadcn se traen con `npx shadcn@latest add <componente>` y no se editan a mano; ver la regla del catálogo en «Reglas de proceso») y **react-router**. El alias `@/*` → `src/*` está declarado a la vez en `tsconfig.app.json` (sin `baseUrl`, deprecado en TS 6) y en `vite.config.ts`.
 
 Organización de `src/`:
 
@@ -157,6 +157,7 @@ La URL de la API sale de `VITE_API_URL` (ver `frontend/.env.example`); por defec
 
 ## Reglas de proceso
 - Convenciones de base de datos (única fuente, no se copian aquí): @docs/convenciones/base-de-datos.md
+- Toda pieza de interfaz nueva sale del catálogo de `frontend/src/components/ui/`. Si ya hay una pieza que sirve, se reutiliza. Si no la hay, se crea ahí como pieza del catálogo, nunca suelta en `components/`: si shadcn/ui la tiene, se trae con `npx shadcn@latest add <componente>`; si no, se escribe a mano en `ui/` con la misma forma que las demás. Los colores salen siempre de los valores con nombre de `frontend/src/index.css` (`bg-primary`, `text-muted-foreground`…), nunca un hexadecimal ni una clase de la paleta cruda de Tailwind (`bg-blue-600`); si falta un valor, se declara antes en `index.css`. El hook `PostToolUse` `.claude/hooks/colores-a-pelo.sh` avisa, sin bloquear, cuando se cuela un color a pelo.
 - Cualquier tarea de backend se hace con la skill `backend-feature` (`.claude/skills/backend-feature/SKILL.md`), sin que nadie tenga que pedirlo: plan por capas y parada para aprobarlo, tests de contrato con el subagente `test-writer`, rojo, tests congelados por su `shasum`, implementación con el subagente `implementer` hasta el verde, y cierre con `dbhub`, `openapi:check` y Postman.
 - La rama es por unidad de trabajo, no por petición. Antes de tocar código, mira en qué rama estás: si ya es una rama de trabajo —cualquiera que no sea `main` ni una `sN/*`—, sigue en ella en vez de crear otra. Solo desde `main` o desde una `sN/*` se crea una nueva (`git checkout -b feat/<slug>`). Nunca commitear directo en `main` ni en una `sN/*`.
 - El commit sí es por petición: al cerrar cada una, usar la skill `/commit`.
