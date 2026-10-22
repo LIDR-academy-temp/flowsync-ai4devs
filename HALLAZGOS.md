@@ -9,7 +9,7 @@ Escribe **una sola línea por punto**, con tus palabras y con lo que mediste, no
 ## 1. Dónde aterrizó la pieza y con qué valores con los números que contaste: dentro o fuera del catálogo, cuántos colores a pelo había antes y cuántos después.
 
 
-La barra se codifico fuera del catalogo en @frontend/src/components/ui/progress.tsx; medi que no habia colores a pelo ni antes ni despues de la parte A pero al ampliar el patron si mostro el text-white existente; la barra no usaba colores literales y tenia bg-primary al principio.
+La barra se codifico fuera del catalogo en @frontend/src/components/task-progress.tsx; medi que no habia colores a pelo ni antes ni despues de la parte A pero al ampliar el patron si mostro el text-white existente; la barra no usaba colores literales y tenia bg-primary al principio.
 
 -
 
