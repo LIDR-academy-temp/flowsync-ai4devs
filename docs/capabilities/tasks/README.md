@@ -115,8 +115,9 @@ qué exige cada una, se abre el enlace de la derecha.
 
 En el frontend, la capability vive en [`pages/tasks-page.tsx`](../../../frontend/src/pages/tasks-page.tsx),
 [`pages/task-page.tsx`](../../../frontend/src/pages/task-page.tsx),
-[`components/task-item.tsx`](../../../frontend/src/components/task-item.tsx) y
-[`components/task-filter.tsx`](../../../frontend/src/components/task-filter.tsx); las llamadas, todas
+[`components/task-item.tsx`](../../../frontend/src/components/task-item.tsx),
+[`components/task-filter.tsx`](../../../frontend/src/components/task-filter.tsx) y
+[`components/task-progress.tsx`](../../../frontend/src/components/task-progress.tsx); las llamadas, todas
 en [`lib/api.ts`](../../../frontend/src/lib/api.ts). Los requisitos de interfaz de la spec son los que
 empiezan por «La interfaz SHALL…».
 

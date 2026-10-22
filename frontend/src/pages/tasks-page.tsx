@@ -7,6 +7,7 @@ import { useAuth } from '@/auth/use-auth'
 import { useAuthForm } from '@/auth/use-auth-form'
 import { TaskItem } from '@/components/task-item'
 import { TaskFilter } from '@/components/task-filter'
+import { TaskProgress } from '@/components/task-progress'
 import { FieldError } from '@/components/field-error'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
@@ -213,6 +214,15 @@ export function TasksPage() {
   // filtro: de aquí sale que marcar algo como hecho lo saque de la vista.
   const visibleTasks = tasks?.filter((task) => matchesFilter(task.status))
 
+  // El progreso se mide sobre `tasks`, no sobre `visibleTasks`: lo que la API
+  // trajo para esta vista más lo que se ha creado o cambiado desde entonces.
+  // Es a propósito, porque marcar una tarea como hecha la saca de la vista por
+  // defecto en el acto, y si la barra solo contara lo visible no se movería
+  // nunca —lo hecho siempre estaría fuera. Así la barra cuenta justo eso: de
+  // lo que tenías delante, cuánto has terminado. Al recargar vuelve a empezar,
+  // porque la API no devuelve las hechas si no se le piden.
+  const doneTotal = tasks?.filter((task) => task.status === 'done').length ?? 0
+
   // El estado pedido, si de verdad es uno de los tres. Se busca en vez de
   // afirmarlo con un `as`: lo que viene de la URL no merece ese voto de
   // confianza, y aquí es donde se nota si no lo era.
@@ -292,6 +302,15 @@ export function TasksPage() {
             <InfoIcon />
             <AlertDescription>{notice}</AlertDescription>
           </Alert>
+        )}
+
+        {/* Encima del listado y solo cuando hay listado: mientras carga no
+            hay nada que medir, y con un filtro inventado o un error `tasks`
+            llega vacío y el propio componente no pinta nada. */}
+        {tasks && tasks.length > 0 && (
+          <div className="mb-4">
+            <TaskProgress done={doneTotal} total={tasks.length} />
+          </div>
         )}
 
         {visibleTasks === undefined ? (
