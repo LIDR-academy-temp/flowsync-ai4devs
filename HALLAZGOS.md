@@ -12,20 +12,8 @@ Escribe **una sola línea por punto**, con tus palabras y con lo que mediste, no
 
 ## 2. Qué crees que decidió eso
 
-- Lo decidió lo que el agente tenía delante. `CLAUDE.md` le dice que los tokens viven en `src/index.css` y que **shadcn** está en `src/components/ui/`.  de partida decía que
-  `src/components/ui/` «se trae con `npx shadcn@latest add` y no se edita a mano» y nada sobre de
-  dónde sale una pieza nueva, así que la única regla empujaba la pieza *fuera* de `ui/`; los dos
-  vecinos que leyó antes de escribir (`task-filter.tsx`, `task-item.tsx`) son componentes propios en
-  `src/components/` montados con `Button` y clases de token, y los imitó hasta en los comentarios;
-  justificó el `div` a mano con que «no hay nada que accionar, solo leer» y además el `npm install`
-  estaba roto por el certificado del proxy, con lo que un `npx shadcn add progress` ni se intentó; y
-  los tokens no salieron de ninguna regla sino de que **en el código que leyó no había ni un color a
-  pelo que copiar** (una skill de visualización que se cargó sola solo aportó la cifra al lado de la
-  barra). El resultado contradice en parte la lección: sin catálogo nombrado no inventó colores, pero
-  sí inventó la pieza.
+- Lo decidió lo que el agente tenía delante. `CLAUDE.md` le dice que los tokens viven en `src/index.css` y que **shadcn** está en `src/components/ui/` y nada acerca de dónde sale una pieza nueva. Así que compuso su pieza como un componente propio más, en vez de traerla de shadcn. En la sección B, al lanzar el prompt con el azul en hexadecimal, con la regla ya en CLAUDE.md, el nuevo color pasó a `frontend/src/index.css` como `--progress`, incrementando los valores con nombre de 59 a 62.
 
 ## 3. Qué avisó el guardarraíl y qué no pudo ver
 
-De qué dudaste, o qué no pudiste comprobar.
-
--
+- El hook avisa pero no bloquea. Sin embargo, al pedirle directamente que cambie el color de la barra no avisó: el color no se escribe a pelo en el componente: entra como token en `index.css` y el componente lo usa por su nombre, así Tailwind genera `bg-progress`. El agente menciona también un problema de contraste al usar el mismo azul para el modo oscuro.
