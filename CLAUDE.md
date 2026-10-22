@@ -153,6 +153,16 @@ Organización de `src/`:
 - `routes/` — `app-routes.tsx` más los guards `protected-route.tsx` y `public-only-route.tsx`.
 - `pages/`, `components/` — pantallas y componentes propios.
 
+### De dónde sale una pieza de interfaz nueva
+
+Antes de escribir marcado nuevo, en este orden:
+
+1. **Un componente propio que ya exista** en `src/components/` (`TaskItem`, `TaskFilter`, `TaskProgress`, `FieldError`…). Si casi sirve, se amplía; no se copia.
+2. **Un componente de shadcn/ui**: el de `src/components/ui/` si ya está, o se trae con `npx shadcn@latest add <componente>`. No se editan a mano ni se reescribe uno que shadcn ya da (botón, alerta, tarjeta, campo, etiqueta).
+3. **Solo si ninguno de los dos cubre el caso**, un componente nuevo en `src/components/`, compuesto con los anteriores y con utilidades de Tailwind.
+
+En los tres casos el color sale de los **tokens de `src/index.css`** (`bg-primary`, `text-muted-foreground`, `bg-destructive`, `border`…), nunca de un valor suelto (hex, `rgb()`, `hsl()`, `oklch()`) ni de la paleta cruda de Tailwind (`bg-blue-600`, `text-white`). Si falta un token, se declara en `index.css` y se usa por su nombre. El hook `PostToolUse` `.claude/hooks/colores-a-pelo.sh` avisa (sin bloquear) cuando un archivo de `src/` trae un color a pelo; el aviso se atiende, no se ignora.
+
 La URL de la API sale de `VITE_API_URL` (ver `frontend/.env.example`); por defecto `http://localhost:3333`.
 
 ## Reglas de proceso

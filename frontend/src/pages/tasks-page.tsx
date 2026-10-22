@@ -7,6 +7,7 @@ import { useAuth } from '@/auth/use-auth'
 import { useAuthForm } from '@/auth/use-auth-form'
 import { TaskItem } from '@/components/task-item'
 import { TaskFilter } from '@/components/task-filter'
+import { TaskProgress } from '@/components/task-progress'
 import { FieldError } from '@/components/field-error'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
@@ -53,6 +54,24 @@ export function TasksPage() {
   // Tareas con un cambio de estado en vuelo, para no encadenar dos clics
   // sobre la misma fila antes de saber si el primero cuajó.
   const [pendingIds, setPendingIds] = useState<ReadonlySet<number>>(new Set())
+  // Cuántas tareas hay en cada estado, para la barra de avance. Va aparte de
+  // `tasks` porque la lista está filtrada y el avance se mide sobre el total.
+  // `null` mientras carga o si no se ha podido calcular: sin dato, sin barra.
+  const [progress, setProgress] = useState<Record<TaskStatus, number> | null>(
+    null,
+  )
+
+  /** Lleva una tarea de un estado a otro en los recuentos de la barra. */
+  const moveInProgress = useCallback(
+    (from: TaskStatus | null, to: TaskStatus) =>
+      setProgress((current) => {
+        if (!current) return current
+        const next = { ...current, [to]: current[to] + 1 }
+        if (from) next[from] -= 1
+        return next
+      }),
+    [],
+  )
 
   /**
    * El mismo predicado que aplica el servidor. Tenerlo también aquí es lo que
@@ -66,6 +85,33 @@ export function TasksPage() {
         : DEFAULT_LIST_STATUSES.includes(status),
     [statusParam],
   )
+
+  // Los recuentos no dependen del filtro: se piden una vez por sesión. La API
+  // no tiene un «todas», así que son dos consultas que juntas cubren los tres
+  // estados: la vista por defecto (abiertas) y las hechas.
+  useEffect(() => {
+    if (!token) return
+
+    let cancelled = false
+
+    Promise.all([api.listTasks(token), api.listTasks(token, 'done')])
+      .then(([open, done]) => {
+        if (cancelled) return
+        setProgress({
+          pending: open.filter((task) => task.status === 'pending').length,
+          in_progress: open.filter((task) => task.status === 'in_progress')
+            .length,
+          done: done.length,
+        })
+      })
+      .catch(() => {
+        if (!cancelled) setProgress(null)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [token])
 
   useEffect(() => {
     if (!token) return
@@ -141,6 +187,7 @@ export function TasksPage() {
       // La API devuelve la lista con las más recientes primero, así que la
       // recién creada entra por arriba. Sin recargar ni volver a pedirla.
       setTasks((current) => [created, ...(current ?? [])])
+      moveInProgress(null, created.status)
       setTitle('')
 
       // Toda tarea nace pendiente, así que con el filtro puesto en otro estado
@@ -169,6 +216,7 @@ export function TasksPage() {
           ) ?? current,
       )
       setPendingIds((current) => new Set(current).add(task.id))
+      moveInProgress(previousStatus, status)
       setStatusError(null)
       setNotice(
         // Si el cambio la saca de la vista actual, desaparecer no puede
@@ -192,6 +240,7 @@ export function TasksPage() {
               item.id === task.id ? { ...item, status: previousStatus } : item,
             ) ?? current,
         )
+        moveInProgress(status, previousStatus)
         setNotice(null)
         setStatusError(
           `No se ha podido cambiar el estado. ${
@@ -206,7 +255,7 @@ export function TasksPage() {
         })
       }
     },
-    [matchesFilter, pendingIds, token],
+    [matchesFilter, moveInProgress, pendingIds, token],
   )
 
   // Lo que se pinta no es lo que trajo la API sino lo que sigue cumpliendo el
@@ -293,6 +342,8 @@ export function TasksPage() {
             <AlertDescription>{notice}</AlertDescription>
           </Alert>
         )}
+
+        {progress && <TaskProgress counts={progress} />}
 
         {visibleTasks === undefined ? (
           <div
