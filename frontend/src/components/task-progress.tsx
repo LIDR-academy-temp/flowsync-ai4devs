@@ -28,7 +28,7 @@ export function TaskProgress({ tasks }: TaskProgressProps) {
         </span>
       </div>
       <div
-        className="bg-primary/15 h-2 overflow-hidden rounded-full"
+        className="bg-progress/15 h-2 overflow-hidden rounded-full"
         role="progressbar"
         aria-labelledby="task-progress-label"
         aria-valuemin={0}
@@ -37,7 +37,7 @@ export function TaskProgress({ tasks }: TaskProgressProps) {
         aria-valuetext={`${percent} % (${done} de ${tasks.length})`}
       >
         <div
-          className="bg-primary h-full rounded-full transition-[width] duration-300"
+          className="bg-progress h-full rounded-full transition-[width] duration-300"
           style={{ width: `${percent}%` }}
         />
       </div>
