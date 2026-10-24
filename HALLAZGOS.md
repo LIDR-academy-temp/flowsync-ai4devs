@@ -1,26 +1,25 @@
 # Hallazgos
 
-Aquí van **las tres líneas** del ejercicio, una por cada punto de abajo. Es lo único que hay que
-traer hecho: un cambio de motor a medias con estas tres líneas escritas vale más que lo contrario,
-porque lo que se discute en el directo es dónde te chocaste.
+## 1. Dónde aterrizó la pieza y con qué valores
 
-Escribe **una sola línea por punto**, con tus palabras y con lo que mediste, no con lo que suponías.
-
-## 1. Las filas que cambian y la rama
-
-Cuántas filas cambian de valor en tu cambio de esquema, medido con una consulta, y en qué rama del
-árbol de reversibilidad cae. Si tu migración no toca datos, dilo tal cual: también es una respuesta.
-
+con los números que contaste: dentro o fuera del catálogo, cuántos colores a pelo había antes y cuántos después.
 -
 
-## 2. Lo que la batería de pruebas no podía ver
+- La pieza aterrizó fuera del catálogo, en `frontend/src/components/task-progress.tsx`: `components/ui/` tenía 5 piezas antes y sigue con 5. Colores a pelo: 1 antes y 1 después (`text-white` en `ui/button.tsx`, heredado de shadcn), así que no añadió ninguno; para los colores usó solo valores con nombre de `src/index.css` (`bg-primary`, `bg-primary/20`, `bg-background`, `text-muted-foreground`), que siguen siendo 59.
 
-Una cosa que la batería de pruebas no podía ver. Si no encontraste ninguna, escribe qué buscaste y dónde.
 
+## 2. Qué crees que decidió eso. 
+
+Es la pregunta interesante del ejercicio, y la respuesta no está en ningún sitio: se deduce mirando qué información tenía delante el agente cuando escribió. Si tu resultado no es el que esperabas al leer las lecciones, dilo tal cual: es el dato del ejercicio.
 -
 
-## 3. Tu duda
+El resultado fue el esperado. 
+- El promt no hacía referencia al catálogo
+- Si bien el claude.mde describe el catálogo, no indica que que una pieza nueva tenga que salir de ahí. 
 
-De qué dudaste, o qué no pudiste comprobar.
-
+## 3. Qué avisó el guardarraíl y qué no pudo ver
+Un script solo caza lo que es mecánico; lo demás se queda fuera, y saber cuál es ese resto es la mitad del asunto.
 -
+
+- Avisó, sin bloquear, de los dos `#2563eb` que metió el agente cuando le pedí el azul a propósito; el agente siguió y lo commiteó igual. 
+Lo que no pudo ver es que la la barra de progreso está fuera del catálogo.
