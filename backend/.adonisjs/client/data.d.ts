@@ -5,9 +5,34 @@
 
 /// <reference path="./manifest.d.ts" />
 import type { InferData, InferVariants } from '@adonisjs/core/types/transformers'
+import type CommentTransformer from '#transformers/comment_transformer'
+import type TaskAssigneeTransformer from '#transformers/task_assignee_transformer'
+import type TaskDetailTransformer from '#transformers/task_detail_transformer'
+import type TaskTransformer from '#transformers/task_transformer'
+import type TrashedTaskTransformer from '#transformers/trashed_task_transformer'
 import type UserTransformer from '#transformers/user_transformer'
 
 export namespace Data {
+  export type Comment = InferData<CommentTransformer>
+  export namespace Comment {
+    export type Variants = InferVariants<CommentTransformer>
+  }
+  export type TaskAssignee = InferData<TaskAssigneeTransformer>
+  export namespace TaskAssignee {
+    export type Variants = InferVariants<TaskAssigneeTransformer>
+  }
+  export type TaskDetail = InferData<TaskDetailTransformer>
+  export namespace TaskDetail {
+    export type Variants = InferVariants<TaskDetailTransformer>
+  }
+  export type Task = InferData<TaskTransformer>
+  export namespace Task {
+    export type Variants = InferVariants<TaskTransformer>
+  }
+  export type TrashedTask = InferData<TrashedTaskTransformer>
+  export namespace TrashedTask {
+    export type Variants = InferVariants<TrashedTaskTransformer>
+  }
   export type User = InferData<UserTransformer>
   export namespace User {
     export type Variants = InferVariants<UserTransformer>

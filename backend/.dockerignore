@@ -1,0 +1,8 @@
+# Lo que no viaja al contexto de construcción de la imagen.
+# Las dependencias se instalan dentro (npm ci) y el compilado se genera dentro
+# (npm run build); la configuración entra solo en tiempo de ejecución (--env-file).
+node_modules
+build
+tmp
+.git
+.env*

@@ -6,6 +6,24 @@ import type { ApiDefinition } from './tree.d.ts'
 const placeholder: any = {}
 
 const routes = {
+  'openapi.html': {
+    methods: ["GET","HEAD"],
+    pattern: '/api',
+    tokens: [{"old":"/api","type":0,"val":"api","end":""}],
+    types: placeholder as Registry['openapi.html']['types'],
+  },
+  'openapi.json': {
+    methods: ["GET","HEAD"],
+    pattern: '/api.json',
+    tokens: [{"old":"/api.json","type":0,"val":"api.json","end":""}],
+    types: placeholder as Registry['openapi.json']['types'],
+  },
+  'openapi.yaml': {
+    methods: ["GET","HEAD"],
+    pattern: '/api.yaml',
+    tokens: [{"old":"/api.yaml","type":0,"val":"api.yaml","end":""}],
+    types: placeholder as Registry['openapi.yaml']['types'],
+  },
   'auth.new_account.store': {
     methods: ["POST"],
     pattern: '/api/v1/auth/signup',
@@ -29,6 +47,66 @@ const routes = {
     pattern: '/api/v1/account/logout',
     tokens: [{"old":"/api/v1/account/logout","type":0,"val":"api","end":""},{"old":"/api/v1/account/logout","type":0,"val":"v1","end":""},{"old":"/api/v1/account/logout","type":0,"val":"account","end":""},{"old":"/api/v1/account/logout","type":0,"val":"logout","end":""}],
     types: placeholder as Registry['profile.access_tokens.destroy']['types'],
+  },
+  'tasks.tasks.index': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/v1/tasks',
+    tokens: [{"old":"/api/v1/tasks","type":0,"val":"api","end":""},{"old":"/api/v1/tasks","type":0,"val":"v1","end":""},{"old":"/api/v1/tasks","type":0,"val":"tasks","end":""}],
+    types: placeholder as Registry['tasks.tasks.index']['types'],
+  },
+  'tasks.tasks.store': {
+    methods: ["POST"],
+    pattern: '/api/v1/tasks',
+    tokens: [{"old":"/api/v1/tasks","type":0,"val":"api","end":""},{"old":"/api/v1/tasks","type":0,"val":"v1","end":""},{"old":"/api/v1/tasks","type":0,"val":"tasks","end":""}],
+    types: placeholder as Registry['tasks.tasks.store']['types'],
+  },
+  'tasks.task_trash.index': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/v1/tasks/trash',
+    tokens: [{"old":"/api/v1/tasks/trash","type":0,"val":"api","end":""},{"old":"/api/v1/tasks/trash","type":0,"val":"v1","end":""},{"old":"/api/v1/tasks/trash","type":0,"val":"tasks","end":""},{"old":"/api/v1/tasks/trash","type":0,"val":"trash","end":""}],
+    types: placeholder as Registry['tasks.task_trash.index']['types'],
+  },
+  'tasks.tasks.show': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/v1/tasks/:id',
+    tokens: [{"old":"/api/v1/tasks/:id","type":0,"val":"api","end":""},{"old":"/api/v1/tasks/:id","type":0,"val":"v1","end":""},{"old":"/api/v1/tasks/:id","type":0,"val":"tasks","end":""},{"old":"/api/v1/tasks/:id","type":1,"val":"id","end":""}],
+    types: placeholder as Registry['tasks.tasks.show']['types'],
+  },
+  'tasks.tasks.destroy': {
+    methods: ["DELETE"],
+    pattern: '/api/v1/tasks/:id',
+    tokens: [{"old":"/api/v1/tasks/:id","type":0,"val":"api","end":""},{"old":"/api/v1/tasks/:id","type":0,"val":"v1","end":""},{"old":"/api/v1/tasks/:id","type":0,"val":"tasks","end":""},{"old":"/api/v1/tasks/:id","type":1,"val":"id","end":""}],
+    types: placeholder as Registry['tasks.tasks.destroy']['types'],
+  },
+  'tasks.task_trash.restore': {
+    methods: ["POST"],
+    pattern: '/api/v1/tasks/:id/restore',
+    tokens: [{"old":"/api/v1/tasks/:id/restore","type":0,"val":"api","end":""},{"old":"/api/v1/tasks/:id/restore","type":0,"val":"v1","end":""},{"old":"/api/v1/tasks/:id/restore","type":0,"val":"tasks","end":""},{"old":"/api/v1/tasks/:id/restore","type":1,"val":"id","end":""},{"old":"/api/v1/tasks/:id/restore","type":0,"val":"restore","end":""}],
+    types: placeholder as Registry['tasks.task_trash.restore']['types'],
+  },
+  'tasks.task_statuses.update': {
+    methods: ["PATCH"],
+    pattern: '/api/v1/tasks/:id/status',
+    tokens: [{"old":"/api/v1/tasks/:id/status","type":0,"val":"api","end":""},{"old":"/api/v1/tasks/:id/status","type":0,"val":"v1","end":""},{"old":"/api/v1/tasks/:id/status","type":0,"val":"tasks","end":""},{"old":"/api/v1/tasks/:id/status","type":1,"val":"id","end":""},{"old":"/api/v1/tasks/:id/status","type":0,"val":"status","end":""}],
+    types: placeholder as Registry['tasks.task_statuses.update']['types'],
+  },
+  'tasks.task_due_dates.update': {
+    methods: ["PUT"],
+    pattern: '/api/v1/tasks/:id/due-date',
+    tokens: [{"old":"/api/v1/tasks/:id/due-date","type":0,"val":"api","end":""},{"old":"/api/v1/tasks/:id/due-date","type":0,"val":"v1","end":""},{"old":"/api/v1/tasks/:id/due-date","type":0,"val":"tasks","end":""},{"old":"/api/v1/tasks/:id/due-date","type":1,"val":"id","end":""},{"old":"/api/v1/tasks/:id/due-date","type":0,"val":"due-date","end":""}],
+    types: placeholder as Registry['tasks.task_due_dates.update']['types'],
+  },
+  'tasks.task_comments.index': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/v1/tasks/:id/comments',
+    tokens: [{"old":"/api/v1/tasks/:id/comments","type":0,"val":"api","end":""},{"old":"/api/v1/tasks/:id/comments","type":0,"val":"v1","end":""},{"old":"/api/v1/tasks/:id/comments","type":0,"val":"tasks","end":""},{"old":"/api/v1/tasks/:id/comments","type":1,"val":"id","end":""},{"old":"/api/v1/tasks/:id/comments","type":0,"val":"comments","end":""}],
+    types: placeholder as Registry['tasks.task_comments.index']['types'],
+  },
+  'tasks.task_comments.store': {
+    methods: ["POST"],
+    pattern: '/api/v1/tasks/:id/comments',
+    tokens: [{"old":"/api/v1/tasks/:id/comments","type":0,"val":"api","end":""},{"old":"/api/v1/tasks/:id/comments","type":0,"val":"v1","end":""},{"old":"/api/v1/tasks/:id/comments","type":0,"val":"tasks","end":""},{"old":"/api/v1/tasks/:id/comments","type":1,"val":"id","end":""},{"old":"/api/v1/tasks/:id/comments","type":0,"val":"comments","end":""}],
+    types: placeholder as Registry['tasks.task_comments.store']['types'],
   },
 } as const satisfies Record<string, AdonisEndpoint>
 
