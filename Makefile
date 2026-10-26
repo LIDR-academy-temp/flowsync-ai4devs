@@ -14,7 +14,7 @@ BACKEND  := backend
 FRONTEND := frontend
 
 .DEFAULT_GOAL := help
-.PHONY: test-unit test-e2e ui test-ui test-web hooks help setup start install env db-up db-down migrate seed db-readonly copia-produccion test clean
+.PHONY: test-unit test-e2e ui test-ui test-web hooks help setup start install env db-up db-down migrate seed db-readonly copia-produccion test image image-run image-stop clean
 
 # La ayuda se genera a partir de los comentarios `## ...` de cada target, para
 # que no haya un segundo listado que mantener a mano y que pueda divergir.
@@ -152,6 +152,29 @@ test-web: ## Corre el recorrido de navegador (Playwright; necesita la aplicació
 hooks: ## Activa los hooks de git del repo (pre-push: make test-ui); una vez por clon
 	@git config core.hooksPath .githooks
 	@echo "✅ Hooks activados (core.hooksPath = .githooks). Antes de cada push correrá: make test-ui"
+
+# ---------------------------------------------------------------------------
+# imagen de la API (backend/Dockerfile): la misma que iría a producción
+# ---------------------------------------------------------------------------
+
+IMAGE      := flowsync-api:local
+CONTAINER  := flowsync-api-local
+IMAGE_PORT ?= 3334
+
+image: ## Construye la imagen de la API, flowsync-api:local
+	@docker build -t $(IMAGE) $(BACKEND)
+
+# La imagen no lleva configuración: toda entra aquí por --env-file. Se pisan las
+# tres variables que cambian dentro de un contenedor: HOST para escuchar fuera del
+# loopback, DB_HOST para llegar al PostgreSQL del host (publicado en 127.0.0.1) y
+# APP_URL con el puerto publicado. Otro puerto: make image-run IMAGE_PORT=4000
+image-run: ## Arranca la imagen en segundo plano en IMAGE_PORT (3334) contra la base de desarrollo
+	@docker run -d --name $(CONTAINER) 		-p $(IMAGE_PORT):3333 		--env-file $(BACKEND)/.env 		-e HOST=0.0.0.0 		-e DB_HOST=host.docker.internal 		-e APP_URL=http://localhost:$(IMAGE_PORT) 		$(IMAGE)
+	@sleep 3
+	@curl -s http://localhost:$(IMAGE_PORT)/; echo ""
+
+image-stop: ## Para y borra el contenedor flowsync-api-local
+	@docker rm -f $(CONTAINER)
 
 # ---------------------------------------------------------------------------
 # start
