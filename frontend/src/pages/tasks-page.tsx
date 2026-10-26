@@ -324,9 +324,11 @@ export function TasksPage() {
             </AlertDescription>
           </Alert>
         ) : visibleTasks.length > 0 ? (
-          <>
-            <TaskProgress tasks={visibleTasks} />
-            <ul className="bg-background divide-y rounded-lg border">
+          // El progreso es la cabecera de la propia lista: cuenta estas filas,
+          // así que va pegado a ellas y no suelto encima.
+          <div className="bg-background rounded-lg border">
+            <TaskProgress tasks={visibleTasks} className="border-b p-4" />
+            <ul className="divide-y">
               {visibleTasks.map((task) => (
                 <TaskItem
                   key={task.id}
@@ -336,7 +338,7 @@ export function TasksPage() {
                 />
               ))}
             </ul>
-          </>
+          </div>
         ) : statusParam ? (
           // Segundo final: el filtro es válido y ahora mismo no hay nada en
           // ese estado. Es una respuesta legítima, no un fallo.

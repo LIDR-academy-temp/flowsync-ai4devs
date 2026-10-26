@@ -1,41 +1,59 @@
+import { Progress } from '@/components/ui/progress'
 import type { Task } from '@/lib/types'
+import { cn } from '@/lib/utils'
 
 type TaskProgressProps = {
   /** Las tareas que se están pintando, no las que trajo la API. */
   tasks: readonly Task[]
+  className?: string
+}
+
+/**
+ * El porcentaje entero de hechas, con los extremos reservados: «100 %» solo si
+ * está todo hecho y «0 %» solo si no lo está nada. Un `Math.round` a secas
+ * daría 100 % con 199 de 200, y un `Math.floor`, 0 % con 1 de 200.
+ */
+function donePercent(done: number, total: number) {
+  if (total === 0 || done === 0) return 0
+  if (done === total) return 100
+  return Math.min(99, Math.max(1, Math.round((done / total) * 100)))
 }
 
 /**
  * Qué parte de lo que hay en pantalla está hecho. Se calcula sobre la lista
  * visible y nada más: con el filtro por defecto, que deja fuera las hechas,
- * marca 0 %, y con el de «Hecho», 100 %.
+ * marca 0 %, y con el de «Hecho», 100 %. Sin tareas no pinta nada, para que
+ * ningún sitio pueda acabar enseñando un «0 de 0».
  */
-export function TaskProgress({ tasks }: TaskProgressProps) {
+export function TaskProgress({ tasks, className }: TaskProgressProps) {
+  const total = tasks.length
+  if (total === 0) return null
+
   const done = tasks.filter((task) => task.status === 'done').length
-  const percent = tasks.length > 0 ? Math.round((done / tasks.length) * 100) : 0
+  const percent = donePercent(done, total)
+  const valueText = `${done} de ${total} hechas`
 
   return (
-    <div className="mb-3 grid gap-1.5">
-      <div className="text-muted-foreground flex justify-between text-sm">
-        <span id="task-progress-label">Hechas de las que ves</span>
-        <span>
-          {done} de {tasks.length} · {percent} %
+    <div className={cn('grid gap-2', className)}>
+      <div className="flex items-baseline justify-between gap-4 text-sm">
+        <span id="task-progress-label" className="text-muted-foreground">
+          Hechas en esta vista
+        </span>
+        <span className="font-medium tabular-nums">
+          {done} de {total}
+          <span className="text-muted-foreground"> · {percent} %</span>
         </span>
       </div>
-      <div
-        className="bg-primary/15 h-2 overflow-hidden rounded-full"
-        role="progressbar"
+      {/* El valor va en porcentaje porque la pieza del catálogo calcula el
+          ancho del relleno sobre 100. Esa pieza se queda el `value` y no se lo
+          pasa a Radix, que sin él la da por indeterminada: por eso el valor y
+          su lectura en palabras se le dan aquí, explícitos. */}
+      <Progress
+        value={percent}
         aria-labelledby="task-progress-label"
-        aria-valuemin={0}
-        aria-valuemax={tasks.length}
-        aria-valuenow={done}
-        aria-valuetext={`${done} de ${tasks.length} hechas`}
-      >
-        <div
-          className="h-full bg-blue-600 transition-[width]"
-          style={{ width: `${percent}%` }}
-        />
-      </div>
+        aria-valuenow={percent}
+        aria-valuetext={valueText}
+      />
     </div>
   )
 }
