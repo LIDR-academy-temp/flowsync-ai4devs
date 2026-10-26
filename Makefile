@@ -14,7 +14,7 @@ BACKEND  := backend
 FRONTEND := frontend
 
 .DEFAULT_GOAL := help
-.PHONY: test-unit test-e2e ui test-ui test-web hooks help setup start install env db-up db-down migrate seed db-readonly copia-produccion test image image-run image-stop clean
+.PHONY: test-unit test-e2e ui test-ui test-web hooks help setup start install env db-up db-down migrate seed db-readonly copia-produccion test image image-run image-stop ci-lint clean
 
 # La ayuda se genera a partir de los comentarios `## ...` de cada target, para
 # que no haya un segundo listado que mantener a mano y que pueda divergir.
@@ -175,6 +175,15 @@ image-run: ## Arranca la imagen en segundo plano en IMAGE_PORT (3334) contra la 
 
 image-stop: ## Para y borra el contenedor flowsync-api-local
 	@docker rm -f $(CONTAINER)
+
+# ---------------------------------------------------------------------------
+# workflows de GitHub Actions
+# ---------------------------------------------------------------------------
+
+# actionlint fijado a una versión y sin instalar nada en la máquina: el mismo
+# comando corre aquí y en el job lint-workflows de .github/workflows/ci.yml.
+ci-lint: ## Comprueba los workflows de .github/workflows con actionlint
+	MSYS_NO_PATHCONV=1 docker run --rm -v "$$(pwd):/repo" -w /repo rhysd/actionlint:1.7.12 -color
 
 # ---------------------------------------------------------------------------
 # start

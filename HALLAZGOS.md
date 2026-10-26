@@ -23,4 +23,4 @@ Una cosa que la batería de pruebas no podía ver. Si no encontraste ninguna, es
 
 De qué dudaste, o qué no pudiste comprobar.
 
--
+- `make ci-lint` salió con código 2 sin que actionlint llegara a correr: en Git Bash sobre Windows el `-w /repo` del `docker run` llega convertido y Docker contesta literalmente `docker: Error response from daemon: the working directory 'C:/Program Files/Git/repo' is invalid, it needs to be an absolute path` (`make: *** [Makefile:186: ci-lint] Error 125`); el mismo target con `MSYS_NO_PATHCONV=1` sí ejecuta actionlint, y el Makefile ya avisa de que Windows sin WSL no está soportado.

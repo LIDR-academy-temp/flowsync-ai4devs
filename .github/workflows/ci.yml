@@ -1,0 +1,206 @@
+name: CI
+
+# Cada cambio propuesto y cada push a la rama principal. Sin filtro de rutas en
+# el `on` a propósito: test, image y lint-workflows tienen que correr en
+# cualquier push o PR. Los dos jobs de infraestructura filtran .railway/** por
+# su cuenta, dentro del propio job.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# Si llegan dos pushes seguidos a la misma referencia, solo interesa el último.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+# Por defecto solo lectura del repositorio. Cada job vuelve a declarar lo que
+# usa, y ninguno pide más que eso.
+permissions:
+  contents: read
+
+jobs:
+  # ¿La suite pasa en una máquina limpia?
+  test:
+    name: suite del backend
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    services:
+      # La misma imagen que compose.yaml y que producción, publicada en el
+      # 54411 del runner para que backend/.env.test la encuentre tal cual.
+      # El healthcheck pregunta por TCP, como en compose.yaml: por el socket
+      # Unix el servidor temporal del primer arranque diría «sano» antes de
+      # tiempo.
+      db-test:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_USER: flowsync
+          POSTGRES_PASSWORD: flowsync
+          POSTGRES_DB: flowsync_test
+        ports:
+          - 54411:5432
+        options: >-
+          --health-cmd "pg_isready -h 127.0.0.1 -U flowsync -d flowsync_test"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 30
+    env:
+      # `start/env.ts` exige estas seis y backend/.env.test no las trae (solo
+      # fija SESSION_DRIVER y DB_*). Ninguna es un secreto ni tiene que serlo:
+      # APP_KEY existe solo para que la validación pase, el mismo papel que en
+      # openapi.yml.
+      NODE_ENV: test
+      PORT: 3333
+      HOST: 127.0.0.1
+      LOG_LEVEL: silent
+      APP_KEY: clave-de-ci-sin-valor-secreto
+      APP_URL: http://127.0.0.1:3333
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Instalar dependencias del backend
+        working-directory: backend
+        run: npm ci
+
+      # El comando es exactamente el que se usa en local. Ojo: `make test` pasa
+      # por `migrate` y `db-up`, y `db-up` hace `docker compose up -d --wait db
+      # db-test`, que también publica un db-test en el 54411 (y un db en el
+      # 54410). Con el servicio de arriba ocupando ya el 54411, ese `up`
+      # choca de puerto. Queda escrito aquí y no se toca el Makefile para
+      # esquivarlo: la decisión de cómo resolverlo es de la parte siguiente.
+      # La salida se guarda entera para sacar de ella el recuento.
+      - name: make test
+        shell: bash
+        run: make test 2>&1 | tee tests.log
+
+      # El recuento de Japa (la línea de «passed»/«failed») va al resumen del
+      # workflow, que se lee sin abrir el registro. `if: always()` para que
+      # también salga cuando la suite falla.
+      - name: Recuento al resumen
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "## Suite del backend"
+            echo ""
+            echo '```'
+            grep -E 'passed|failed|Tests' tests.log || echo "sin recuento: la suite no llegó a imprimir resultados"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # ¿El artefacto se construye desde cero? Este trabajo comprueba que la imagen
+  # se construye, no que arranque: no la ejecuta, no le pasa configuración y
+  # no habla con ninguna base de datos.
+  image:
+    name: imagen de la API
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: make image
+        run: make image
+
+  # Los propios workflows, con actionlint fijado a una versión (ver Makefile).
+  lint-workflows:
+    name: actionlint
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: make ci-lint
+        run: make ci-lint
+
+  # Plan de infraestructura: solo en un pull request de este mismo repositorio
+  # (uno desde un fork no ve RAILWAY_TOKEN y fallaría sin explicar por qué) y
+  # solo si el PR toca .railway/**. El filtro de rutas va en un paso del job,
+  # no en el `on`, para no impedir que el resto de jobs corra siempre.
+  infra-plan:
+    name: plan de Railway
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+    permissions:
+      contents: read
+      # La acción publica el plan como comentario en el PR.
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Hace falta el historial para comparar la base del PR con su cabeza.
+          fetch-depth: 0
+
+      - name: ¿Toca el PR .railway/?
+        id: cambios
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          if git diff --quiet "$BASE_SHA" "$HEAD_SHA" -- .railway/; then
+            echo "railway=false" >> "$GITHUB_OUTPUT"
+            echo ".railway/ no cambia en este PR: no hay nada que planificar."
+          else
+            echo "railway=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: railway config plan
+        if: steps.cambios.outputs.railway == 'true'
+        uses: railwayapp/config@9e17d413dbe219f19d62538d9c06b5dbb5e9abf8 # v1.2.0
+        with:
+          command: plan
+          railway-token: ${{ secrets.RAILWAY_TOKEN }}
+
+  # Aplica el plan revisado: solo en un push a main que cambie .railway/**. En
+  # un push no existe `github.event.pull_request`, así que la condición se
+  # calcula con `git diff` entre el commit anterior y el empujado.
+  infra-apply:
+    name: apply de Railway
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      # La acción descarga el artefacto del plan que se publicó en el PR.
+      actions: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Hace falta el historial para comparar con el commit anterior al push.
+          fetch-depth: 0
+
+      - name: ¿Cambia el push .railway/?
+        id: cambios
+        shell: bash
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+          AFTER_SHA: ${{ github.sha }}
+        run: |
+          # En el primer push de una rama `before` son cuarenta ceros y no hay
+          # con qué comparar: se trata como «sin cambios».
+          if [[ "$BEFORE_SHA" =~ ^0+$ ]] || git diff --quiet "$BEFORE_SHA" "$AFTER_SHA" -- .railway/; then
+            echo "railway=false" >> "$GITHUB_OUTPUT"
+            echo ".railway/ no cambia en este push: no hay nada que aplicar."
+          else
+            echo "railway=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: railway config apply
+        if: steps.cambios.outputs.railway == 'true'
+        uses: railwayapp/config@9e17d413dbe219f19d62538d9c06b5dbb5e9abf8 # v1.2.0
+        with:
+          command: apply
+          railway-token: ${{ secrets.RAILWAY_TOKEN }}
