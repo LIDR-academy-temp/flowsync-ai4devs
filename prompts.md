@@ -1,0 +1,7 @@
+1. Define un titulo con la siguiente decripcion  1. El terreno que ya existe y analiza el repositorio y describe que capabilities hay ya coinstruidas en el proyecto y como es el modelo de datos actual. Escribe un resumen de 3 a 5 lineas con un lenguaje no tecnico para que las personas puedan entenderlo claramente.
+
+2. Actualiza el resumen,  Capabilities y Modelo de datos actual in agregar lenguaje tecnico de desarrollo, el target de este documento es para personas que no tienen conocimientos tecnicos.
+
+3. Crea un nuevo apartado con el titulo 2. El interrogatorio, con las respuestas ya decididas. Pregunta antes de proponer. Realiza 5 preguntas que mas reducirian la incertidumbre sobre el problema, los usuarios y el alcance. Acota a una sola ronda de preguntas y debes omitir bajar al modelo de datos o a los endpoints (Lenguaje tecnico). Ten en cuenta la ficha tecnica adjunta a este prompt. Si preguntas algo que esta fuera de la ficha decide tu y lo marcas como supuesto y lee los supuestos que se declaren al terminar. Y lo que ya esta decidido que quede fuera del MVP. - Fuera del MVP: notificaciones push, integración con Slack, roles/permisos avanzados, analítica/reporting, comentarios en tareas.
+
+4. Basado en el interrogatorio define el alcance del producto basado en este contenido. Remueve los supuestos y una vez finalices agregalo al archivo y dame un resumen de que quitaste.
