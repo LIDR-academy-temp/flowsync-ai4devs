@@ -46,9 +46,9 @@
         "hooks": [
           {
             "type": "command",
-            "statusMessage": "Buscando colores literales en el frontend...",
+            "statusMessage": "Buscando colores a pelo en el frontend...",
             "timeout": 30,
-            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/colores-con-nombre.sh"
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/color-con-nombre.sh"
           }
         ]
       }

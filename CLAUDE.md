@@ -153,12 +153,19 @@ Organización de `src/`:
 - `routes/` — `app-routes.tsx` más los guards `protected-route.tsx` y `public-only-route.tsx`.
 - `pages/`, `components/` — pantallas y componentes propios.
 
+### De dónde sale una pieza de interfaz nueva
+
+- **Lo que hay hoy en `src/components/ui/`:** `alert`, `button`, `card`, `input`, `label` y `progress`. Se mira aquí antes de escribir nada.
+- **Lo que falte se trae con el CLI del catálogo** (`npx shadcn@latest add <componente>`, desde `frontend/`), no se escribe a mano. Después se revisa lo que ha escrito: hoy el registro declara `cn` como paquete npm, lo instala, importa de él en vez de `@/lib/utils` y sube `radix-ui`; eso se deshace y el import se apunta a `@/lib/utils`, como en las demás piezas.
+- **Un elemento de interfaz escrito por su cuenta fuera de `ui/` es una decisión que se declara, no un descuido:** se dice en el plan o en el mensaje de commit, con el porqué (no hay pieza en el catálogo, o la que hay no sirve). Las composiciones de pantalla que solo combinan piezas de `ui/` (`task-item`, `task-progress`…) no son esto.
+- **Colores:** el valor con nombre está en `src/index.css`. El hook `PostToolUse` `.claude/hooks/color-con-nombre.sh` avisa (exit 2, sin bloquear) cuando un Write o un Edit en `src/` introduce un hexadecimal o una clase de paleta cruda (`bg-blue-600`); `index.css` está exceptuado. Lo que el hook no ve —de dónde sale la pieza— lo dice esta regla.
+
 La URL de la API sale de `VITE_API_URL` (ver `frontend/.env.example`); por defecto `http://localhost:3333`.
 
 ## Reglas de proceso
 - Convenciones de base de datos (única fuente, no se copian aquí): @docs/convenciones/base-de-datos.md
 - Cualquier tarea de backend se hace con la skill `backend-feature` (`.claude/skills/backend-feature/SKILL.md`), sin que nadie tenga que pedirlo: plan por capas y parada para aprobarlo, tests de contrato con el subagente `test-writer`, rojo, tests congelados por su `shasum`, implementación con el subagente `implementer` hasta el verde, y cierre con `dbhub`, `openapi:check` y Postman.
-- Antes de crear una pieza de interfaz, se revisa `frontend/src/components/ui/`. Si ninguna sirve, la pieza reutilizable nueva se añade ahí primero y la pantalla la consume después. Los estilos usan los valores con nombre de `frontend/src/index.css` (`bg-primary`, `text-muted-foreground`, `border`…), nunca colores literales (hexadecimales, `rgb(`/`oklch(`, ni paleta cruda como `bg-blue-600`). El hook `PostToolUse` `.claude/hooks/colores-con-nombre.sh` avisa, sin bloquear, cuando un Write o un Edit en `frontend/src/` trae uno (fuera queda `index.css`).
+- Antes de crear una pieza de interfaz, se revisa `frontend/src/components/ui/`. Si ninguna sirve, la pieza reutilizable nueva se añade ahí primero y la pantalla la consume después. Los estilos usan los valores con nombre de `frontend/src/index.css` (`bg-primary`, `text-muted-foreground`, `border`…), nunca colores literales (hexadecimales, `rgb(`/`oklch(`, ni paleta cruda como `bg-blue-600`). El hook `PostToolUse` `.claude/hooks/color-con-nombre.sh` avisa, sin bloquear, de los hexadecimales y la paleta cruda que entren por un Write o un Edit en `frontend/src/` (fuera queda `index.css`); `rgb(`/`oklch(` no los ve. Detalle en la sección «Frontend».
 - La rama es por unidad de trabajo, no por petición. Antes de tocar código, mira en qué rama estás: si ya es una rama de trabajo —cualquiera que no sea `main` ni una `sN/*`—, sigue en ella en vez de crear otra. Solo desde `main` o desde una `sN/*` se crea una nueva (`git checkout -b feat/<slug>`). Nunca commitear directo en `main` ni en una `sN/*`.
 - El commit sí es por petición: al cerrar cada una, usar la skill `/commit`.
 - Un cambio que toque rutas, controladores, validadores o transformers de una capability se cierra en el mismo commit con el documento OpenAPI y el README de esa capability al día. El documento se construye en cada petición y no hay fichero que generar, así que lo que se commitea es el diff regenerado de `.adonisjs/`; el README es `docs/capabilities/<nombre>/README.md`.
