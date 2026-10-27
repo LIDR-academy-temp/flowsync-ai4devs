@@ -1,0 +1,13 @@
+# Dependencias y salidas locales: la imagen las reconstruye.
+**/node_modules
+build
+tmp
+
+# Ningún .env entra en el contexto de construcción, en ningún nivel.
+**/.env
+**/.env.*
+
+# Nada de esto hace falta para compilar.
+.git
+**/npm-debug.log
+**/.DS_Store
