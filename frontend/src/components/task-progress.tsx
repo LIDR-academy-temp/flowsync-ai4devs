@@ -48,7 +48,11 @@ export function TaskProgress({ tasks, className }: TaskProgressProps) {
           ancho del relleno sobre 100. Esa pieza se queda el `value` y no se lo
           pasa a Radix, que sin él la da por indeterminada: por eso el valor y
           su lectura en palabras se le dan aquí, explícitos. */}
+      {/* Excepción declarada: el relleno va en `bg-blue-600`, color a pelo,
+          por decisión explícita y solo en esta barra. Se pinta desde aquí, por
+          el `data-slot` del indicador, para no tocar la pieza del catálogo. */}
       <Progress
+        className="*:data-[slot=progress-indicator]:bg-blue-600"
         value={percent}
         aria-labelledby="task-progress-label"
         aria-valuenow={percent}
