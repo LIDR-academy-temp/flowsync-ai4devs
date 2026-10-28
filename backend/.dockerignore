@@ -1,0 +1,10 @@
+# Se reinstalan y se recompilan dentro de la imagen
+node_modules
+build
+tmp
+
+# Ningún .env entra en el contexto: la configuración llega al arrancar el contenedor
+.env
+.env.*
+**/.env
+**/.env.*
