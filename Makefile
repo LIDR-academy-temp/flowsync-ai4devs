@@ -14,7 +14,7 @@ BACKEND  := backend
 FRONTEND := frontend
 
 .DEFAULT_GOAL := help
-.PHONY: test-unit test-e2e ui test-ui test-web hooks help setup start install env db-up db-down migrate seed db-readonly copia-produccion test image image-run image-stop clean
+.PHONY: test-unit test-e2e ui test-ui test-web hooks help setup start install env db-up db-down migrate seed db-readonly copia-produccion test image image-run image-stop ci-lint clean
 
 # La ayuda se genera a partir de los comentarios `## ...` de cada target, para
 # que no haya un segundo listado que mantener a mano y que pueda divergir.
@@ -215,6 +215,24 @@ image-stop: ## Para y borra el contenedor de la imagen
 	else \
 		echo "ℹ️  No hay ningún contenedor $(IMAGE_CONTAINER), no se toca nada."; \
 	fi
+
+# ---------------------------------------------------------------------------
+# pipeline (.github/workflows)
+# ---------------------------------------------------------------------------
+
+# actionlint desde su imagen oficial, así que no se instala nada: ni aquí ni en
+# CI, donde el trabajo lint-workflows de ci.yml ejecuta este mismo atajo.
+# Fijada por digest además de por etiqueta, igual que las acciones del pipeline
+# por SHA: una etiqueta se puede mover. Es el digest del índice
+# multiarquitectura (vale en amd64 y en arm64), y sale de:
+#   docker buildx imagetools inspect rhysd/actionlint:1.7.12
+# El repositorio se monta en solo lectura y sin red: actionlint solo lee.
+# Si todo está bien no dice nada y sale con 0.
+ACTIONLINT_IMAGE := rhysd/actionlint:1.7.12@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667
+
+ci-lint: ## Valida los workflows de .github/workflows/ con actionlint (en Docker)
+	@command -v docker >/dev/null 2>&1 || { echo "❌ Docker no está instalado o no está en el PATH."; exit 1; }
+	@docker run --rm --network none -v "$(CURDIR):/repo:ro" -w /repo $(ACTIONLINT_IMAGE) -color
 
 # Un hook de git no viaja en el clon: hay que activarlo en cada copia del repo.
 # Idempotente. Para quitarlo: git config --unset core.hooksPath
