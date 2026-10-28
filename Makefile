@@ -14,7 +14,7 @@ BACKEND  := backend
 FRONTEND := frontend
 
 .DEFAULT_GOAL := help
-.PHONY: test-unit test-e2e ui test-ui test-web hooks help setup start install env db-up db-down migrate seed db-readonly copia-produccion test clean image image-run image-stop
+.PHONY: test-unit test-e2e ui test-ui test-web hooks help setup start install env db-up db-down migrate seed db-readonly copia-produccion test clean image image-run image-stop ci-lint
 
 # La ayuda se genera a partir de los comentarios `## ...` de cada target, para
 # que no haya un segundo listado que mantener a mano y que pueda divergir.
@@ -192,6 +192,19 @@ image-run: ## Arranca la imagen en segundo plano (puerto IMAGE_PORT, por defecto
 # `rm -f` para y borra a la vez; si el contenedor ya no existe, no es un error.
 image-stop: ## Para y borra el contenedor de la imagen
 	@docker rm -f $(CONTAINER) >/dev/null 2>&1 || true
+
+# ---------------------------------------------------------------------------
+# integración continua
+# ---------------------------------------------------------------------------
+
+# actionlint en su imagen oficial, sin instalar nada en la máquina. Sin
+# argumentos revisa todos los ficheros de .github/workflows/ del directorio de
+# trabajo, que es la raíz del repo montada en /repo. Su código de salida es el
+# de la receta: un hallazgo hace fallar `make ci-lint`.
+ACTIONLINT_IMAGE := rhysd/actionlint:1.7.12
+
+ci-lint: ## Valida los workflows de .github/workflows/ con actionlint (Docker)
+	@docker run --rm -v "$(CURDIR)":/repo -w /repo $(ACTIONLINT_IMAGE) -color
 
 # ---------------------------------------------------------------------------
 # start
