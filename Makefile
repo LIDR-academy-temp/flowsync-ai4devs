@@ -14,7 +14,7 @@ BACKEND  := backend
 FRONTEND := frontend
 
 .DEFAULT_GOAL := help
-.PHONY: test-unit test-e2e ui test-ui test-web hooks help setup start install env db-up db-down migrate seed db-readonly copia-produccion test clean
+.PHONY: test-unit test-e2e ui test-ui test-web hooks help setup start install env db-up db-down migrate seed db-readonly copia-produccion test clean image image-run image-stop ci-lint
 
 # La ayuda se genera a partir de los comentarios `## ...` de cada target, para
 # que no haya un segundo listado que mantener a mano y que pueda divergir.
@@ -67,9 +67,18 @@ env:
 
 # `--wait` bloquea hasta que los dos healthchecks pasan: la imagen crea la base
 # la primera vez y no acepta conexiones mientras tanto.
+#
+# En CI (GitHub define CI=true) las bases no las levanta compose: la de pruebas
+# es un contenedor de servicio del propio trabajo, ya publicado en el 54411, y
+# un segundo `compose up` chocaría con ese puerto. Así `make test` es el mismo
+# comando en local y en el pipeline.
 db-up: ## Levanta las bases de desarrollo (54410) y de pruebas (54411)
-	@echo "🐘 Levantando PostgreSQL (db y db-test)..."
-	@docker compose up -d --wait db db-test
+	@if [ "$$CI" = "true" ]; then \
+		echo "🐘 CI: la base de pruebas la pone el runner (services:), no compose."; \
+	else \
+		echo "🐘 Levantando PostgreSQL (db y db-test)..."; \
+		docker compose up -d --wait db db-test; \
+	fi
 
 # Sin `-v`: el volumen de desarrollo se conserva. La de pruebas es tmpfs y se vacía sola.
 db-down: ## Para las bases (la de desarrollo conserva sus datos)
@@ -152,6 +161,56 @@ test-web: ## Corre el recorrido de navegador (Playwright; necesita la aplicació
 hooks: ## Activa los hooks de git del repo (pre-push: make test-ui); una vez por clon
 	@git config core.hooksPath .githooks
 	@echo "✅ Hooks activados (core.hooksPath = .githooks). Antes de cada push correrá: make test-ui"
+
+# ---------------------------------------------------------------------------
+# imagen de la API (backend/Dockerfile)
+# ---------------------------------------------------------------------------
+
+IMAGE      := flowsync-api:local
+CONTAINER  := flowsync-api-local
+IMAGE_PORT ?= 3334
+
+image: ## Construye la imagen de la API (flowsync-api:local)
+	@echo "🐳 Construyendo $(IMAGE)..."
+	@docker build -t $(IMAGE) $(BACKEND)
+
+# backend/.env da la base de la configuración y tres valores se fuerzan encima:
+#   - HOST=0.0.0.0: con localhost el servidor solo escucharía dentro del
+#     contenedor y el puerto publicado no llegaría a nada.
+#   - DB_HOST=host.docker.internal: dentro del contenedor localhost es el propio
+#     contenedor; la base de desarrollo está en la máquina, en el 54410.
+#   - APP_URL: --env-file pasa los valores literales y no expande el
+#     ${HOST}:${PORT} del .env, que start/env.ts rechazaría como URL.
+# --add-host hace que host.docker.internal exista también en Linux, donde
+# Docker no lo define solo. El sleep da margen al arranque antes del curl.
+# Pide la base de desarrollo levantada (make db-up).
+image-run: ## Arranca la imagen en segundo plano en IMAGE_PORT (3334) y le hace un curl
+	@test -f $(BACKEND)/.env || { echo "❌ Falta $(BACKEND)/.env. Ejecuta primero: make setup"; exit 1; }
+	@echo "🐳 Arrancando $(CONTAINER) en http://localhost:$(IMAGE_PORT)..."
+	@docker run -d --name $(CONTAINER) \
+		-p $(IMAGE_PORT):3333 \
+		--add-host=host.docker.internal:host-gateway \
+		--env-file $(BACKEND)/.env \
+		-e HOST=0.0.0.0 \
+		-e DB_HOST=host.docker.internal \
+		-e APP_URL=http://localhost:$(IMAGE_PORT) \
+		$(IMAGE) >/dev/null
+	@sleep 3
+	@curl -s http://localhost:$(IMAGE_PORT); echo
+
+# `|| true` para que no falle si el contenedor ya no existe.
+image-stop: ## Para y borra el contenedor de la imagen
+	@docker rm -f $(CONTAINER) >/dev/null 2>&1 || true
+	@echo "🧹 $(CONTAINER) parado y borrado."
+
+# ---------------------------------------------------------------------------
+# pipeline (.github/workflows/)
+# ---------------------------------------------------------------------------
+
+# actionlint desde su imagen oficial: no se instala nada. La imagen trae
+# shellcheck, así que también revisa los `run:` de cada paso.
+ci-lint: ## Valida los workflows de .github/workflows/ con actionlint (en Docker)
+	@docker run --rm -v "$(CURDIR):/repo" -w /repo rhysd/actionlint:1.7.12 -color
 
 # ---------------------------------------------------------------------------
 # start

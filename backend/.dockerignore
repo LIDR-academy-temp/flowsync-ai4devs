@@ -1,0 +1,21 @@
+# Lo que no viaja al contexto de construcción de la imagen.
+#
+# node_modules y build se regeneran dentro (npm ci, npm run build): copiar los
+# del host mezclaría binarios de otra plataforma (macOS/arm64) con los de Linux.
+node_modules
+build
+tmp
+
+# Ningún .env entra en el contexto, ni el de desarrollo ni el de pruebas: la
+# configuración se pasa al arrancar el contenedor, nunca al construir.
+.env
+.env.*
+
+# Fuera de lo que necesita `npm run build`.
+Dockerfile
+.dockerignore
+npm-debug.log
+.DS_Store
+.vscode
+.idea
+.fleet
