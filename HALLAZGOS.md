@@ -1,26 +1,24 @@
 # Hallazgos
 
-Aquí van **las tres líneas** del ejercicio, una por cada punto de abajo. Es lo único que hay que
-traer hecho: un cambio de motor a medias con estas tres líneas escritas vale más que lo contrario,
-porque lo que se discute en el directo es dónde te chocaste.
+Las tres líneas de la Parte C del ejercicio del módulo 13, con lo que se midió en esta máquina, no con lo que se suponía.
 
-Escribe **una sola línea por punto**, con tus palabras y con lo que mediste, no con lo que suponías.
+## 1. Cuánto pesa la imagen y qué tuvo que escribir el Dockerfile que mi máquina daba por hecho
 
-## 1. Las filas que cambian y la rama
+flowsync-api:local pesa **388 MB en disco y 81,1 MB de contenido**.
+El Dockerfile tuvo que declarar lo siguiente:
+  - la línea de Node, node:24-alpine;
+  - las dependencias, con npm ci sobre el lockfile;
+  - un usuario sin privilegios (node).
 
-Cuántas filas cambian de valor en tu cambio de esquema, medido con una consulta, y en qué rama del
-árbol de reversibilidad cae. Si tu migración no toca datos, dilo tal cual: también es una respuesta.
+## 2. Qué reclamó el contenedor al arrancar sin variables
 
--
+El principal reclamo fueron las variables relacionadas con secretos.
 
-## 2. Lo que la batería de pruebas no podía ver
+12 variables: 
+  - 2 son secretos, porque conocerlas da acceso: APP_KEY y DB_PASSWORD.
+  - Las otras 10 son configuración, y nada pasaría si salieran en un registro público: NODE_ENV, PORT, HOST, LOG_LEVEL, APP_URL, SESSION_DRIVER, DB_HOST, DB_PORT, DB_USER y DB_DATABASE.
 
-Una cosa que la batería de pruebas no podía ver. Si no encontraste ninguna, escribe qué buscaste y dónde.
+## 3. Qué NO comprueba mi pipeline
 
--
-
-## 3. Tu duda
-
-De qué dudaste, o qué no pudiste comprobar.
-
--
+El pipeline no valida que la imagen arraque, sólo la contruye.
+El comando de make image informo de 9 vulnerabilidades y no hay algo que las valide ni las corrija
