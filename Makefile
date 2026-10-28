@@ -14,7 +14,7 @@ BACKEND  := backend
 FRONTEND := frontend
 
 .DEFAULT_GOAL := help
-.PHONY: test-unit test-e2e ui test-ui test-web hooks help setup start install env db-up db-down migrate seed db-readonly copia-produccion test clean
+.PHONY: test-unit test-e2e image image-run image-stop ci-lint ui test-ui test-web hooks help setup start install env db-up db-down migrate seed db-readonly copia-produccion test clean
 
 # La ayuda se genera a partir de los comentarios `## ...` de cada target, para
 # que no haya un segundo listado que mantener a mano y que pueda divergir.
@@ -67,9 +67,16 @@ env:
 
 # `--wait` bloquea hasta que los dos healthchecks pasan: la imagen crea la base
 # la primera vez y no acepta conexiones mientras tanto.
+#
+# En CI (GitHub Actions define CI=true) la base de pruebas la pone el workflow
+# como contenedor de servicio en el 54411: levantar compose chocaría con ese
+# puerto. Así `make test` es el mismo comando en local y en .github/workflows/ci.yml.
 db-up: ## Levanta las bases de desarrollo (54410) y de pruebas (54411)
-	@echo "🐘 Levantando PostgreSQL (db y db-test)..."
-	@docker compose up -d --wait db db-test
+	@if [ -n "$$CI" ]; then \
+		echo "🐘 CI: la base de pruebas la pone el workflow; no se levanta compose."; exit 0; \
+	fi; \
+	echo "🐘 Levantando PostgreSQL (db y db-test)..."; \
+	docker compose up -d --wait db db-test
 
 # Sin `-v`: el volumen de desarrollo se conserva. La de pruebas es tmpfs y se vacía sola.
 db-down: ## Para las bases (la de desarrollo conserva sus datos)
@@ -123,6 +130,55 @@ test-unit: migrate ## Solo la suite unitaria (sin servidor ni base de datos)
 
 test-e2e: migrate ## Solo la suite funcional: peticiones HTTP reales contra la base de pruebas
 	@cd $(BACKEND) && node ace test functional
+
+# ---------------------------------------------------------------------------
+# imagen de la API (backend/Dockerfile)
+# ---------------------------------------------------------------------------
+
+IMAGE_TAG       := flowsync-api:local
+IMAGE_CONTAINER := flowsync-api-local
+# Otro puerto: make image-run IMAGE_PORT=<puerto>
+IMAGE_PORT      ?= 3334
+
+image: ## Construye la imagen de la API (flowsync-api:local)
+	@docker build -t $(IMAGE_TAG) $(BACKEND)
+
+# La configuración es backend/.env, con tres valores pisados encima:
+#   - HOST=0.0.0.0: escuchando en localhost, el servidor solo se oiría a sí mismo
+#     dentro del contenedor y el puerto publicado no llegaría a nada.
+#   - DB_HOST=host.docker.internal: dentro del contenedor, localhost es el propio
+#     contenedor, no la máquina donde corre la base de desarrollo. El --add-host
+#     da ese nombre también en Linux, donde Docker no lo define solo.
+#   - APP_URL: el .env la escribe como http://${HOST}:${PORT} y --env-file no
+#     expande variables, así que llegaría tal cual y no sería una URL.
+# El curl reintenta mientras el servidor arranca: justo después del `docker run`
+# todavía no escucha. Con Docker Desktop el puerto publicado acepta la conexión
+# igualmente y la corta (curl sale con 56, no con "connection refused"), así que
+# --retry-connrefused no basta: hace falta --retry-all-errors.
+image-run: ## Arranca la imagen en segundo plano en el puerto IMAGE_PORT (por defecto 3334)
+	@docker run -d --name $(IMAGE_CONTAINER) \
+		-p $(IMAGE_PORT):3333 \
+		--add-host=host.docker.internal:host-gateway \
+		--env-file $(BACKEND)/.env \
+		-e HOST=0.0.0.0 \
+		-e DB_HOST=host.docker.internal \
+		-e APP_URL=http://localhost:$(IMAGE_PORT) \
+		$(IMAGE_TAG)
+	@curl -s --retry 10 --retry-all-errors --retry-delay 1 http://localhost:$(IMAGE_PORT)/
+	@echo ""
+
+image-stop: ## Para y borra el contenedor de la imagen
+	@docker rm -f $(IMAGE_CONTAINER)
+
+# ---------------------------------------------------------------------------
+# pipeline (.github/workflows/)
+# ---------------------------------------------------------------------------
+
+# actionlint desde su imagen oficial: no se instala nada, y es el mismo comando
+# aquí y en el trabajo `lint-workflows` de ci.yml. Si todo está bien no dice nada
+# y sale con 0.
+ci-lint: ## Valida los workflows de .github/workflows/ con actionlint (en Docker)
+	@docker run --rm -v "$(CURDIR):/repo" --workdir /repo rhysd/actionlint:1.7.12 -color
 
 # ---------------------------------------------------------------------------
 # frontend: catálogo de componentes y comprobaciones de interfaz

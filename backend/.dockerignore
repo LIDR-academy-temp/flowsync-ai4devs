@@ -1,0 +1,8 @@
+# Lo que no entra en el contexto de `docker build` no puede acabar en la imagen.
+node_modules
+build
+tmp
+
+# Ningún .env, en ningún nivel: la configuración entra al arrancar el contenedor.
+**/.env
+**/.env.*
