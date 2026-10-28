@@ -14,7 +14,7 @@ BACKEND  := backend
 FRONTEND := frontend
 
 .DEFAULT_GOAL := help
-.PHONY: test-unit test-e2e help setup start install env db-up db-down migrate seed db-readonly copia-produccion test clean
+.PHONY: test-unit test-e2e ui test-ui test-web hooks help setup start install env db-up db-down migrate seed db-readonly copia-produccion test clean
 
 # La ayuda se genera a partir de los comentarios `## ...` de cada target, para
 # que no haya un segundo listado que mantener a mano y que pueda divergir.
@@ -123,6 +123,28 @@ test-unit: migrate ## Solo la suite unitaria (sin servidor ni base de datos)
 
 test-e2e: migrate ## Solo la suite funcional: peticiones HTTP reales contra la base de pruebas
 	@cd $(BACKEND) && node ace test functional
+
+# ---------------------------------------------------------------------------
+# catálogo de interfaz (Storybook) y navegador
+# ---------------------------------------------------------------------------
+
+ui: ## Arranca el catálogo de interfaz (Storybook, http://localhost:6006)
+	@cd $(FRONTEND) && npx storybook dev -p 6006
+
+# El proyecto `storybook` de vite.config.ts monta cada historia en Chromium sin
+# ventana (Playwright) y le pasa las comprobaciones del addon.
+test-ui: ## Corre las comprobaciones sobre las historias, sin ventana
+	@cd $(FRONTEND) && npx vitest run --project=storybook
+
+test-web: ## Corre el recorrido de navegador (Playwright)
+	@cd $(FRONTEND) && npx playwright test
+
+# Un hook de git no viaja en el clon: cada persona lo activa una vez con esto.
+# El pre-push corre `make test-ui` (no `test-web`; el porqué está en el hook).
+hooks: ## Activa los hooks de git del repo (.githooks/, pre-push con test-ui)
+	@git config core.hooksPath .githooks
+	@echo "🪝 Hooks activados desde .githooks/ (pre-push: make test-ui)."
+	@echo "   Para saltarlo en un push concreto: git push --no-verify"
 
 # ---------------------------------------------------------------------------
 # start

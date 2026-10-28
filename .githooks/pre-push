@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# pre-push: comprueba el catálogo de interfaz antes de que el trabajo salga de
+# esta máquina. Se instala con `make hooks` (un hook de git no viaja en el clon).
+#
+# Corre `make test-ui`: las historias de Storybook en Chromium sin ventana, que
+# tardan segundos y no necesitan nada levantado.
+#
+# NO corre `make test-web` a propósito: el recorrido de Playwright necesita la
+# aplicación levantada (backend, base y frontend). Un disparador que falla
+# porque el servidor no estaba no dice nada del código, y a la segunda vez se
+# desactiva — con lo que se pierde también la comprobación que sí servía.
+#
+# Para saltárselo en un push concreto: git push --no-verify
+
+set -u
+
+cd "$(git rev-parse --show-toplevel)" || exit 1
+
+echo "🔎 pre-push: comprobando las historias del catálogo (make test-ui)..."
+
+if ! make --no-print-directory test-ui >/dev/null 2>&1; then
+  echo ""
+  echo "❌ Push cancelado: fallan las comprobaciones de las historias."
+  echo "   Para ver el detalle:  make test-ui"
+  echo "   Para empujar igualmente (bajo tu responsabilidad):  git push --no-verify"
+  exit 1
+fi
+
+echo "✅ Historias en verde."

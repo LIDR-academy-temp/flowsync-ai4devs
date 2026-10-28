@@ -7,6 +7,7 @@ import { useAuth } from '@/auth/use-auth'
 import { useAuthForm } from '@/auth/use-auth-form'
 import { TaskItem } from '@/components/task-item'
 import { TaskFilter } from '@/components/task-filter'
+import { TaskProgress } from '@/components/task-progress'
 import { FieldError } from '@/components/field-error'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
@@ -323,16 +324,21 @@ export function TasksPage() {
             </AlertDescription>
           </Alert>
         ) : visibleTasks.length > 0 ? (
-          <ul className="bg-background divide-y rounded-lg border">
-            {visibleTasks.map((task) => (
-              <TaskItem
-                key={task.id}
-                task={task}
-                onChangeStatus={handleChangeStatus}
-                isBusy={pendingIds.has(task.id)}
-              />
-            ))}
-          </ul>
+          // El progreso es la cabecera de la propia lista: cuenta estas filas,
+          // así que va pegado a ellas y no suelto encima.
+          <div className="bg-background rounded-lg border">
+            <TaskProgress tasks={visibleTasks} className="border-b p-4" />
+            <ul className="divide-y">
+              {visibleTasks.map((task) => (
+                <TaskItem
+                  key={task.id}
+                  task={task}
+                  onChangeStatus={handleChangeStatus}
+                  isBusy={pendingIds.has(task.id)}
+                />
+              ))}
+            </ul>
+          </div>
         ) : statusParam ? (
           // Segundo final: el filtro es válido y ahora mismo no hay nada en
           // ese estado. Es una respuesta legítima, no un fallo.
