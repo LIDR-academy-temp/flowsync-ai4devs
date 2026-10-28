@@ -14,7 +14,7 @@ BACKEND  := backend
 FRONTEND := frontend
 
 .DEFAULT_GOAL := help
-.PHONY: test-unit test-e2e ui test-ui test-web hooks help setup start install env db-up db-down migrate seed db-readonly copia-produccion test image image-run image-stop clean
+.PHONY: test-unit test-e2e ui test-ui test-web hooks help setup start install env db-up db-down migrate seed db-readonly copia-produccion test image image-run image-stop ci-lint clean
 
 # La ayuda se genera a partir de los comentarios `## ...` de cada target, para
 # que no haya un segundo listado que mantener a mano y que pueda divergir.
@@ -164,6 +164,16 @@ image-run: ## Arranca la imagen en segundo plano en IMAGE_PORT (3334) y la consu
 
 image-stop: ## Para y borra el contenedor de la imagen
 	@docker rm -f $(IMAGE_CONTAINER)
+
+# ---------------------------------------------------------------------------
+# pipeline (.github/workflows/)
+# ---------------------------------------------------------------------------
+
+# actionlint en su imagen oficial: no hay nada que instalar. Se monta la raíz del
+# repo (y no solo .github/) para que encuentre el proyecto, y sin argumentos valida
+# todos los workflows. Sale en silencio con 0 si todo está bien.
+ci-lint: ## Valida los workflows de .github/workflows/ con actionlint (en Docker)
+	@docker run --rm -v "$(CURDIR):/repo" --workdir /repo rhysd/actionlint:1.7.12 -color
 
 # ---------------------------------------------------------------------------
 # frontend: catálogo de componentes y comprobaciones de interfaz
