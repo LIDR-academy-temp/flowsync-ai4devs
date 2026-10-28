@@ -14,7 +14,7 @@ BACKEND  := backend
 FRONTEND := frontend
 
 .DEFAULT_GOAL := help
-.PHONY: test-unit test-e2e ui test-ui test-web hooks help setup start install env db-up db-down migrate seed db-readonly copia-produccion test clean image image-run image-stop
+.PHONY: test-unit test-e2e ui test-ui test-web hooks help setup start install env db-up db-down migrate seed db-readonly copia-produccion test clean image image-run image-stop ci-lint
 
 # La ayuda se genera a partir de los comentarios `## ...` de cada target, para
 # que no haya un segundo listado que mantener a mano y que pueda divergir.
@@ -67,9 +67,17 @@ env:
 
 # `--wait` bloquea hasta que los dos healthchecks pasan: la imagen crea la base
 # la primera vez y no acepta conexiones mientras tanto.
+#
+# Con DB_EXTERNA definida no se levanta nada: la base ya la pone otro, en el
+# mismo puerto. Es el caso del pipeline (.github/workflows/ci.yml), donde
+# PostgreSQL es un contenedor de servicio en el 54411 y compose chocaría con él.
 db-up: ## Levanta las bases de desarrollo (54410) y de pruebas (54411)
-	@echo "🐘 Levantando PostgreSQL (db y db-test)..."
-	@docker compose up -d --wait db db-test
+	@if [ -n "$$DB_EXTERNA" ]; then \
+		echo "🐘 DB_EXTERNA definida: la base la pone otro, no se levanta compose."; \
+	else \
+		echo "🐘 Levantando PostgreSQL (db y db-test)..."; \
+		docker compose up -d --wait db db-test; \
+	fi
 
 # Sin `-v`: el volumen de desarrollo se conserva. La de pruebas es tmpfs y se vacía sola.
 db-down: ## Para las bases (la de desarrollo conserva sus datos)
@@ -236,6 +244,15 @@ image-stop: ## Para y borra el contenedor de la imagen
 	@docker stop $(IMAGE_CONTAINER) >/dev/null
 	@docker rm $(IMAGE_CONTAINER) >/dev/null
 	@echo "🧹 $(IMAGE_CONTAINER) parado y borrado."
+
+# ---------------------------------------------------------------------------
+# pipeline (.github/workflows/)
+# ---------------------------------------------------------------------------
+
+# Con la imagen oficial de actionlint, para no instalar nada: se monta la raíz
+# del repo y actionlint encuentra solo los workflows de .github/workflows/.
+ci-lint: ## Valida los workflows de .github/workflows/ con actionlint
+	@docker run --rm -v "$(CURDIR)":/repo --workdir /repo rhysd/actionlint:1.7.12 -color
 
 # ---------------------------------------------------------------------------
 # clean
