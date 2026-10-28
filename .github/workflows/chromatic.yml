@@ -1,0 +1,59 @@
+# Publica el Storybook del frontend en Chromatic en cada pull request, para que
+# los estados de cada pieza se revisen como imagen además de con sus `play`.
+#
+# Necesita el secreto `CHROMATIC_PROJECT_TOKEN` (el token del proyecto en
+# Chromatic) dado de alta en el repositorio.
+name: chromatic
+
+on:
+  pull_request:
+
+# Solo lee el repositorio: Chromatic informa por su propio check, no comenta el
+# PR ni escribe en el repositorio.
+permissions:
+  contents: read
+
+# Si llegan dos pushes seguidos al mismo PR, solo interesa el último.
+concurrency:
+  group: chromatic-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  chromatic:
+    name: Storybook en Chromatic
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    # Un PR desde un fork no recibe los secretos del repositorio: sin
+    # `CHROMATIC_PROJECT_TOKEN` la publicación fallaría sin explicar por qué.
+    # Se salta limpiamente, con la misma condición que `revisor.yml`.
+    if: github.event.pull_request.head.repo.full_name == github.repository
+
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # Chromatic busca en el historial la build con la que comparar: con
+          # un clon superficial no encuentra la línea base.
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      # Con `--legacy-peer-deps`, como cualquier instalación del frontend.
+      - name: Instalar dependencias del frontend
+        run: npm ci --legacy-peer-deps
+
+      # Construye el Storybook con el script `build-storybook` de
+      # frontend/package.json y lo sube.
+      - name: Publicar en Chromatic
+        uses: chromaui/action@v18
+        with:
+          workingDir: frontend
+          projectToken: ${{ secrets.CHROMATIC_PROJECT_TOKEN }}
