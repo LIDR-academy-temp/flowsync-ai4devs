@@ -14,7 +14,7 @@ BACKEND  := backend
 FRONTEND := frontend
 
 .DEFAULT_GOAL := help
-.PHONY: test-unit test-e2e ui test-ui test-web hooks help setup start install env db-up db-down migrate seed db-readonly copia-produccion test clean
+.PHONY: test-unit test-e2e ui test-ui test-web hooks help setup start install env db-up db-down migrate seed db-readonly copia-produccion test image image-run image-stop clean
 
 # La ayuda se genera a partir de los comentarios `## ...` de cada target, para
 # que no haya un segundo listado que mantener a mano y que pueda divergir.
@@ -146,6 +146,75 @@ test-web: ## Corre el recorrido de navegador (Playwright; necesita la aplicació
 		exit 1; \
 	fi
 	@cd $(FRONTEND) && npx playwright test
+
+# ---------------------------------------------------------------------------
+# imagen de la API (backend/Dockerfile)
+# ---------------------------------------------------------------------------
+
+IMAGE           := flowsync-api:local
+IMAGE_CONTAINER := flowsync-api-local
+# Puerto del host para la imagen. No es el 3333 para no chocar con `make start`.
+# Otro: make image-run IMAGE_PORT=<puerto>
+IMAGE_PORT      ?= 3334
+
+# El contexto es backend/, donde viven el Dockerfile y su .dockerignore.
+image: ## Construye la imagen de la API (flowsync-api:local)
+	@command -v docker >/dev/null 2>&1 || { echo "❌ Docker no está instalado o no está en el PATH."; exit 1; }
+	@echo "🐳 Construyendo $(IMAGE)..."
+	@docker build -t $(IMAGE) $(BACKEND)
+
+# La configuración es la de backend/.env, con tres valores forzados encima (un -e
+# pisa lo que traiga --env-file):
+#   - HOST=0.0.0.0: con `localhost` el servidor solo atendería dentro del
+#     contenedor y el puerto publicado no llegaría a nadie.
+#   - DB_HOST=host.docker.internal: dentro del contenedor `localhost` es el propio
+#     contenedor. Docker Desktop ya define ese nombre; en Docker Engine (Linux,
+#     WSL) lo define `--add-host ...:host-gateway`, que en Desktop no estorba.
+#   - APP_URL: Docker no expande el `${HOST}:${PORT}` del .env, lo pasaría tal cual.
+# Si el contenedor ya existe, parado o no, se borra antes: es desechable, y así
+# siempre arranca la imagen recién construida.
+# Al final espera hasta ~30 s a que la raíz responda. Si el contenedor se muere
+# antes (lo normal cuando start/env.ts rechaza una variable), enseña sus logs.
+image-run: ## Arranca la imagen en segundo plano (puerto IMAGE_PORT, por defecto 3334)
+	@command -v docker >/dev/null 2>&1 || { echo "❌ Docker no está instalado o no está en el PATH."; exit 1; }
+	@command -v curl   >/dev/null 2>&1 || { echo "❌ curl no está instalado."; exit 1; }
+	@if [ ! -f $(BACKEND)/.env ]; then \
+		echo "❌ Falta $(BACKEND)/.env. Ejecuta primero: make setup"; exit 1; \
+	fi
+	@if ! docker image inspect $(IMAGE) >/dev/null 2>&1; then \
+		echo "❌ No existe la imagen $(IMAGE). Constrúyela con: make image"; exit 1; \
+	fi
+	@if docker container inspect $(IMAGE_CONTAINER) >/dev/null 2>&1; then \
+		echo "♻️  $(IMAGE_CONTAINER) ya existía: se borra para arrancarlo de nuevo."; \
+		docker rm -f $(IMAGE_CONTAINER) >/dev/null; \
+	fi
+	@echo "🚀 Arrancando $(IMAGE_CONTAINER) en http://localhost:$(IMAGE_PORT)..."
+	@docker run -d --name $(IMAGE_CONTAINER) \
+		--add-host host.docker.internal:host-gateway \
+		-p $(IMAGE_PORT):3333 \
+		--env-file $(BACKEND)/.env \
+		-e HOST=0.0.0.0 \
+		-e DB_HOST=host.docker.internal \
+		-e APP_URL=http://localhost:$(IMAGE_PORT) \
+		$(IMAGE) >/dev/null
+	@for i in $$(seq 1 30); do \
+		if curl -s http://localhost:$(IMAGE_PORT)/; then echo ""; exit 0; fi; \
+		if [ "$$(docker container inspect -f '{{.State.Running}}' $(IMAGE_CONTAINER))" != "true" ]; then \
+			echo "❌ $(IMAGE_CONTAINER) se ha parado al arrancar. Sus logs:"; \
+			docker logs $(IMAGE_CONTAINER); exit 1; \
+		fi; \
+		sleep 1; \
+	done; \
+	echo "❌ No responde en http://localhost:$(IMAGE_PORT) tras 30 s. Mira: docker logs $(IMAGE_CONTAINER)"; exit 1
+
+# `docker stop` y no `rm -f`: manda SIGTERM y deja que la API cierre ordenadamente.
+image-stop: ## Para y borra el contenedor de la imagen
+	@if docker container inspect $(IMAGE_CONTAINER) >/dev/null 2>&1; then \
+		echo "🛑 Parando y borrando $(IMAGE_CONTAINER)..."; \
+		docker stop $(IMAGE_CONTAINER) >/dev/null && docker rm $(IMAGE_CONTAINER) >/dev/null; \
+	else \
+		echo "ℹ️  No hay ningún contenedor $(IMAGE_CONTAINER), no se toca nada."; \
+	fi
 
 # Un hook de git no viaja en el clon: hay que activarlo en cada copia del repo.
 # Idempotente. Para quitarlo: git config --unset core.hooksPath
