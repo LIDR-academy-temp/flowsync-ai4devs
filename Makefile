@@ -14,7 +14,7 @@ BACKEND  := backend
 FRONTEND := frontend
 
 .DEFAULT_GOAL := help
-.PHONY: test-unit test-e2e ui test-ui test-web hooks help setup start install env db-up db-down migrate seed db-readonly copia-produccion test clean
+.PHONY: test-unit test-e2e ui test-ui test-web hooks help setup start install env db-up db-down migrate seed db-readonly copia-produccion test clean image image-run image-stop
 
 # La ayuda se genera a partir de los comentarios `## ...` de cada target, para
 # que no haya un segundo listado que mantener a mano y que pueda divergir.
@@ -152,6 +152,61 @@ test-web: ## Corre el recorrido de navegador (Playwright; necesita la aplicació
 hooks: ## Activa los hooks de git del repo (pre-push: make test-ui); una vez por clon
 	@git config core.hooksPath .githooks
 	@echo "✅ Hooks activados (core.hooksPath = .githooks). Antes de cada push correrá: make test-ui"
+
+# ---------------------------------------------------------------------------
+# imagen del backend (backend/Dockerfile)
+# ---------------------------------------------------------------------------
+
+IMAGE_TAG       := flowsync-api:local
+IMAGE_CONTAINER := flowsync-api-local
+# 3334 y no 3333 para poder tenerla levantada a la vez que `make start`.
+# Otro puerto: make image-run IMAGE_PORT=<puerto>
+IMAGE_PORT      ?= 3334
+
+# El contexto es backend/ y no la raíz: así backups/ (datos personales reales) y
+# el resto del monorepo no llegan nunca al demonio de Docker. Lo que sobra dentro
+# de backend/ (node_modules, build, tmp, cualquier .env) lo quita backend/.dockerignore.
+image: ## Construye la imagen del backend (flowsync-api:local)
+	@echo "🐳 Construyendo $(IMAGE_TAG)..."
+	@docker build -t $(IMAGE_TAG) $(BACKEND)
+
+# backend/.env es el de desarrollo y se pisan tres valores que dentro del contenedor
+# no valen: HOST=localhost solo escucharía en el loopback del contenedor; localhost
+# como DB_HOST es el propio contenedor, no la máquina donde publica `db`; y Docker
+# no expande el ${HOST}:${PORT} de APP_URL, que llegaría literal y no pasaría la
+# validación de start/env.ts. Los -e ganan al --env-file.
+#
+# - Antes se borra un contenedor anterior con el mismo nombre, para poder relanzarlo
+#   sin un `make image-stop` de por medio.
+# - --add-host da host.docker.internal en Docker Engine de Linux, donde no existe
+#   por defecto; en Docker Desktop (Windows, macOS) ya existe y no cambia nada.
+# - MSYS_NO_PATHCONV=1 evita que Git Bash reescriba como rutas de Windows los
+#   argumentos con aspecto de ruta; en macOS y Linux se ignora.
+# - El curl reintenta mientras el servidor arranca: justo después de `docker run -d`
+#   aún no escucha y Docker Desktop corta la conexión en vez de rechazarla, de ahí
+#   --retry-all-errors y no solo --retry-connrefused.
+image-run: ## Arranca la imagen en segundo plano (puerto IMAGE_PORT, 3334 por defecto)
+	@docker rm -f $(IMAGE_CONTAINER) >/dev/null 2>&1 || true
+	@echo "🐳 Arrancando $(IMAGE_CONTAINER) en http://localhost:$(IMAGE_PORT)..."
+	@MSYS_NO_PATHCONV=1 docker run -d \
+		--name $(IMAGE_CONTAINER) \
+		-p $(IMAGE_PORT):3333 \
+		--add-host=host.docker.internal:host-gateway \
+		--env-file $(BACKEND)/.env \
+		-e HOST=0.0.0.0 \
+		-e DB_HOST=host.docker.internal \
+		-e APP_URL=http://localhost:$(IMAGE_PORT) \
+		$(IMAGE_TAG)
+	@curl -s --retry 30 --retry-delay 1 --retry-all-errors http://localhost:$(IMAGE_PORT)/ \
+		|| { echo "❌ No responde en http://localhost:$(IMAGE_PORT). Mira: docker logs $(IMAGE_CONTAINER)"; exit 1; }
+	@echo ""
+
+# `docker stop` manda SIGTERM, que bin/server.ts atiende para cerrar ordenadamente;
+# luego se borra para que el nombre quede libre.
+image-stop: ## Para y borra el contenedor de la imagen
+	@docker stop $(IMAGE_CONTAINER) >/dev/null
+	@docker rm $(IMAGE_CONTAINER) >/dev/null
+	@echo "🛑 $(IMAGE_CONTAINER) parado y borrado."
 
 # ---------------------------------------------------------------------------
 # start
