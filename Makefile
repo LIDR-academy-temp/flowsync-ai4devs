@@ -14,7 +14,7 @@ BACKEND  := backend
 FRONTEND := frontend
 
 .DEFAULT_GOAL := help
-.PHONY: test-unit test-e2e ui test-ui test-web hooks help setup start install env db-up db-down migrate seed db-readonly copia-produccion test clean
+.PHONY: image image-run image-stop ci-lint test-unit test-e2e ui test-ui test-web hooks help setup start install env db-up db-down migrate seed db-readonly copia-produccion test clean
 
 # La ayuda se genera a partir de los comentarios `## ...` de cada target, para
 # que no haya un segundo listado que mantener a mano y que pueda divergir.
@@ -67,9 +67,18 @@ env:
 
 # `--wait` bloquea hasta que los dos healthchecks pasan: la imagen crea la base
 # la primera vez y no acepta conexiones mientras tanto.
+#
+# En CI (GitHub define CI=true en todos los runners) no se levanta nada: la base de
+# pruebas la pone el workflow como contenedor de servicio en el mismo 54411, y
+# compose chocaría con ella por el puerto. Así `make test` es el mismo comando en
+# local y en .github/workflows/ci.yml.
 db-up: ## Levanta las bases de desarrollo (54410) y de pruebas (54411)
-	@echo "🐘 Levantando PostgreSQL (db y db-test)..."
-	@docker compose up -d --wait db db-test
+	@if [ -n "$$CI" ]; then \
+		echo "🐘 CI: las bases las pone el workflow; no se levanta compose."; \
+	else \
+		echo "🐘 Levantando PostgreSQL (db y db-test)..."; \
+		docker compose up -d --wait db db-test; \
+	fi
 
 # Sin `-v`: el volumen de desarrollo se conserva. La de pruebas es tmpfs y se vacía sola.
 db-down: ## Para las bases (la de desarrollo conserva sus datos)
@@ -152,6 +161,49 @@ test-web: ## Corre el recorrido de navegador (Playwright; necesita la aplicació
 hooks: ## Activa los hooks de git del repo (pre-push: make test-ui); una vez por clon
 	@git config core.hooksPath .githooks
 	@echo "✅ Hooks activados (core.hooksPath = .githooks). Antes de cada push correrá: make test-ui"
+
+# ---------------------------------------------------------------------------
+# imagen de la API (backend/Dockerfile)
+# ---------------------------------------------------------------------------
+
+IMAGE           := flowsync-api:local
+IMAGE_CONTAINER := flowsync-api-local
+IMAGE_PORT      ?= 3334
+
+image: ## Construye la imagen de la API (flowsync-api:local)
+	@docker build -t $(IMAGE) $(BACKEND)
+
+# Dentro del contenedor localhost es el propio contenedor: la base se alcanza por
+# host.docker.internal, que en Linux/WSL no existe sin --add-host. HOST tiene que
+# escuchar en todas las interfaces para que el puerto publicado llegue, y APP_URL
+# se fuerza porque Docker no expande el ${HOST}:${PORT} que trae backend/.env.
+# Los -e van detrás de --env-file y lo pisan.
+# El curl reintenta ante cualquier error, no solo ante un rechazo: mientras Node
+# arranca, el proxy de Docker ya acepta en el puerto publicado y corta la conexión
+# (curl sale con 56), y --retry-connrefused no cubre ese caso.
+image-run: ## Arranca la imagen en segundo plano en IMAGE_PORT (3334) contra la base de desarrollo
+	@docker run -d --name $(IMAGE_CONTAINER) \
+		--add-host=host.docker.internal:host-gateway \
+		-p $(IMAGE_PORT):3333 \
+		--env-file $(BACKEND)/.env \
+		-e HOST=0.0.0.0 \
+		-e DB_HOST=host.docker.internal \
+		-e APP_URL=http://localhost:$(IMAGE_PORT) \
+		$(IMAGE)
+	@curl -s --retry 10 --retry-all-errors --retry-delay 1 http://localhost:$(IMAGE_PORT)/
+	@echo ""
+
+image-stop: ## Para y borra el contenedor de la imagen
+	@docker stop $(IMAGE_CONTAINER) >/dev/null && docker rm $(IMAGE_CONTAINER) >/dev/null
+
+# ---------------------------------------------------------------------------
+# pipeline (.github/workflows/)
+# ---------------------------------------------------------------------------
+
+# actionlint desde su imagen oficial: no se instala nada. Se monta la raíz del repo
+# y actionlint encuentra solo .github/workflows/. En silencio y con 0 si todo está bien.
+ci-lint: ## Valida los workflows de .github/workflows/ con actionlint (Docker)
+	@docker run --rm -v "$(CURDIR):/repo" -w /repo rhysd/actionlint:1.7.12 -color
 
 # ---------------------------------------------------------------------------
 # start
