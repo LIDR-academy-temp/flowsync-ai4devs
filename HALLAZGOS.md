@@ -44,9 +44,6 @@ El resto son configuracion:
 - DB_USER
 - DB_DATABASE
 
-
--
-
 ## 3. Que NO comprueba tu pipeline
 
 - Problemas de seguridad, dependencias inseguras, (por ejemplo, npm ci con 9 vulnerabilidades, 1 crítica, 1 alta)
