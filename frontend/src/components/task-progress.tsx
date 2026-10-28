@@ -37,7 +37,7 @@ export function TaskProgress({ tasks }: TaskProgressProps) {
         className="bg-muted h-2 overflow-hidden rounded-full"
       >
         <div
-          className="bg-primary h-full w-full origin-left transition-transform motion-reduce:transition-none"
+          className="h-full bg-[#1D4ED8] w-full origin-left transition-transform motion-reduce:transition-none"
           style={{ transform: `scaleX(${percent / 100})` }}
         />
       </div>
