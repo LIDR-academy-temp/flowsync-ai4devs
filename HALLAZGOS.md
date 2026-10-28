@@ -12,8 +12,7 @@ Escribe **una sola línea por punto**, con tus palabras y con lo que mediste, no
 Cuánto pesa tu imagen y qué tuvo que escribir el Dockerfile que tu máquina daba por hecho. Una dependencia del sistema, una versión, un paso de construcción: lo que en tu portátil ya estaba y en una máquina vacía hubo que declarar.
 
 Tamaño de la imagen: 252 MB (167 MB de node:24-alpine y 85 MB de dependencias de producción; la aplicación compilada son 0,6 MB). 
-El Dockerfile tuvo que declarar lo que mi portátil daba por hecho: la versión de Node (salió la 24.22.1, no mi 24.13.1, y npm 11.19.1 en vez de 11.8.0, instalar dependencias desde el lockfile dos veces, compilar con npm run build, y correr como un usuario sin privilegios (de ahí el EACCES al escribir .adonisjs/). No hizo falta ningún paquete del sistema: scrypt viene en Node y pg es JavaScript puro.
--
+El Dockerfile tuvo que declarar lo que mi portátil daba por hecho: la versión de Node (salió la 24.22.1, no mi 24.13.1, y npm 11.19.1 en vez de 11.8.0), instalar dependencias desde el lockfile dos veces, compilar con npm run build, y correr como un usuario sin privilegios (de ahí el EACCES al escribir .adonisjs/). No hizo falta ningún paquete del sistema: scrypt viene en Node y pg es JavaScript puro.
 
 ## 2. Qué reclamó el contenedor al arrancar sin variables.
 
@@ -46,7 +45,7 @@ Salida literal:
  ⁃ (async file://start/env.js:2:16) 
 
 Lo que pasó con make image-run: la API respondió, pero el curl falló con el error 56 por la carrera con el proxy de puertos de Docker Desktop, y apareció el aviso EACCES de ejecutar en modo development sobre código de root.
--
+
 
 ## 3. Qué NO comprueba tu pipeline.
 
