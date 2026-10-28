@@ -1,26 +1,7 @@
 # Hallazgos
 
-Aquí van **las tres líneas** del ejercicio, una por cada punto de abajo. Es lo único que hay que
-traer hecho: un cambio de motor a medias con estas tres líneas escritas vale más que lo contrario,
-porque lo que se discute en el directo es dónde te chocaste.
+1. De los 13 casos nuevos (7 en `overdue.spec.ts`, 6 en `tests/unit/`) fallaron 5 —3 funcionales («fecha del día anterior: llega vencida», «darla por hecha…», «aplazar…») y 2 unitarios («hecha (done) con la fecha pasada», «da lo mismo… como Date de pg»)— y los 40 que ya había siguieron en verde (`make test`: 48 passed, 5 failed de 53; `test-e2e`: 44/47; `test-unit`: 4/6).
 
-Escribe **una sola línea por punto**, con tus palabras y con lo que mediste, no con lo que suponías.
+2. Pasaron 8 nuevos, pero el que pasa por la razón equivocada es el funcional «una tarea hecha con la fecha pasada no llega vencida»: su gemelo unitario falla porque `isOverdueOn` no mira `status`, y en HTTP pasa igual porque al releer de la base `dueDate` llega como `Date` (columna `date` + `@column()` sin `consume`), `Date < 'AAAA-MM-DD'` siempre da `false`, y por eso fallan justo los tres funcionales que esperan `isOverdue: true` tras un GET y pasan todos los que esperan `false`.
 
-## 1. Las filas que cambian y la rama
-
-Cuántas filas cambian de valor en tu cambio de esquema, medido con una consulta, y en qué rama del
-árbol de reversibilidad cae. Si tu migración no toca datos, dilo tal cual: también es una respuesta.
-
--
-
-## 2. Lo que la batería de pruebas no podía ver
-
-Una cosa que la batería de pruebas no podía ver. Si no encontraste ninguna, escribe qué buscaste y dónde.
-
--
-
-## 3. Tu duda
-
-De qué dudaste, o qué no pudiste comprobar.
-
--
+3. No comprobé en ejecución que `dueDate` llegue como `Date` desde la base (lo deduzco del fallo unitario con `new Date(2026, 7, 19)`, del `@column()` sin `consume` de `database/schema.ts` y de que solo falle lo leído por GET, no lo que devuelve el PUT con el valor recién asignado como texto), y no sé si la medianoche local del `Date` añadiría además un desfase de un día según el huso de la máquina.
