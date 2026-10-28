@@ -93,6 +93,11 @@ de `ci.yml` afirma:
   `actions/setup-node@v4`, `actions/upload-artifact@v4` y `actions/github-script@v7` por etiqueta, y
   las imágenes de Docker (`pgvector:pg17`, `node:24-alpine`, `rhysd/actionlint:1.7.12`) van por
   etiqueta, no por digest: `1.7.12` resolvió hoy a `sha256:b1934ee5…9315667`, y mañana puede no ser así.
+- **Nada, sobre mi propio PR.** En el PR #31 (de mi fork a `LIDR-academy-temp/flowsync-ai4devs`,
+  base `s13/start`) las cuatro ejecuciones —CI, OpenAPI, revisor y chromatic— se quedaron en
+  `action_required`: el repo del curso no ejecuta las Actions de quien colabora por primera vez hasta
+  que alguien las aprueba. Ninguno de los cinco trabajos ha corrido todavía en ningún runner, y cuando
+  corran, `infra-plan` e `infra-apply` se saltarán igual: el PR viene de un fork y no recibe secretos.
 - **Dos piezas que solo existen en GitHub.** Que `make db-up` se salte compose con `CI` definido y que
   el recuento de la línea `Tests …` de Japa llegue al resumen no se han probado en ningún runner:
   actionlint valida la sintaxis, no ejecuta nada.
