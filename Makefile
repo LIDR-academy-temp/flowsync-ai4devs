@@ -14,7 +14,7 @@ BACKEND  := backend
 FRONTEND := frontend
 
 .DEFAULT_GOAL := help
-.PHONY: test-unit test-e2e ui test-ui test-web hooks help setup start install env db-up db-down migrate seed db-readonly copia-produccion test clean image image-run image-stop
+.PHONY: test-unit test-e2e ui test-ui test-web hooks help setup start install env db-up db-down migrate seed db-readonly copia-produccion test clean image image-run image-stop ci-lint
 
 # La ayuda se genera a partir de los comentarios `## ...` de cada target, para
 # que no haya un segundo listado que mantener a mano y que pueda divergir.
@@ -67,9 +67,13 @@ env:
 
 # `--wait` bloquea hasta que los dos healthchecks pasan: la imagen crea la base
 # la primera vez y no acepta conexiones mientras tanto.
+# DB_SERVICES solo lo cambia CI: allí la base de pruebas ya la aporta el contenedor
+# de servicio del trabajo en el 54411 y compose no puede publicar el mismo puerto.
+DB_SERVICES ?= db db-test
+
 db-up: ## Levanta las bases de desarrollo (54410) y de pruebas (54411)
-	@echo "🐘 Levantando PostgreSQL (db y db-test)..."
-	@docker compose up -d --wait db db-test
+	@echo "🐘 Levantando PostgreSQL ($(DB_SERVICES))..."
+	@docker compose up -d --wait $(DB_SERVICES)
 
 # Sin `-v`: el volumen de desarrollo se conserva. La de pruebas es tmpfs y se vacía sola.
 db-down: ## Para las bases (la de desarrollo conserva sus datos)
@@ -184,6 +188,15 @@ image-run: ## Arranca la imagen en segundo plano en IMAGE_PORT (3334 por defecto
 
 image-stop: ## Para y borra el contenedor de la imagen
 	@docker rm -f $(IMAGE_CONTAINER)
+
+# ---------------------------------------------------------------------------
+# CI
+# ---------------------------------------------------------------------------
+
+# actionlint desde su imagen oficial: no hay nada que instalar. Sin argumentos
+# busca los workflows de .github/workflows/ a partir de la raíz montada.
+ci-lint: ## Valida los workflows de .github/workflows/ con actionlint (Docker)
+	@docker run --rm -v "$(CURDIR)":/repo -w /repo rhysd/actionlint:1.7.12 -color
 
 # ---------------------------------------------------------------------------
 # start
