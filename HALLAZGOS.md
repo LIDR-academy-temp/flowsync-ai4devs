@@ -72,4 +72,27 @@ reclama y que aun así le llegan, porque `make image-run` le pasa el `.env` ente
 
 ## 3. Qué NO comprueba el pipeline
 
-_Pendiente de la parte B (`.github/workflows/ci.yml`)._
+`make ci-lint` salió en silencio con código 0 a la primera. Lo que **ninguno** de los cinco trabajos
+de `ci.yml` afirma:
+
+- **Que la imagen arranque.** `image` solo la construye: nadie comprueba que con las doce variables
+  de arriba arranque, que responda en el 3333 ni que llegue a la base. Eso solo lo vi yo, en local,
+  con `make image-run`, y solo contra la raíz `/`, que no toca la base.
+- **Qué lleva dentro la imagen.** Ni su tamaño, ni que no viaje ningún `.env`, ni que no vaya el
+  código fuente ni las dependencias de desarrollo. Si mañana alguien quita una línea del
+  `.dockerignore`, `image` sigue en verde.
+- **Que la API funcione contra los datos que hay.** `test` migra una base vacía y corre la suite, y la
+  suite solo cubre `auth`: `tasks` no tiene ni un test y `tests/unit/` no existe. Tampoco se prueba
+  ningún `down` de las migraciones.
+- **Lint y tipos del backend.** `npm run lint` no corre en ningún trabajo. Y del frontend, nada: ni
+  lint, ni build, ni `make test-ui` (`chromatic.yml` publica el catálogo, no lo comprueba).
+- **La infraestructura.** `.railway/` no existe y `RAILWAY_TOKEN` no está dado de alta: `infra-plan`
+  e `infra-apply` no han corrido nunca y no sé si funcionan. En los PR del propio repo arrancan
+  siempre y salen en verde sin hacer nada si el PR no toca `.railway/`; en un PR desde un fork, ni eso.
+- **Que lo fijado siga fijo.** Las acciones van por SHA, pero `railwayapp/config` llama por dentro a
+  `actions/setup-node@v4`, `actions/upload-artifact@v4` y `actions/github-script@v7` por etiqueta, y
+  las imágenes de Docker (`pgvector:pg17`, `node:24-alpine`, `rhysd/actionlint:1.7.12`) van por
+  etiqueta, no por digest: `1.7.12` resolvió hoy a `sha256:b1934ee5…9315667`, y mañana puede no ser así.
+- **Dos piezas que solo existen en GitHub.** Que `make db-up` se salte compose con `CI` definido y que
+  el recuento de la línea `Tests …` de Japa llegue al resumen no se han probado en ningún runner:
+  actionlint valida la sintaxis, no ejecuta nada.

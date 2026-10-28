@@ -181,29 +181,26 @@ Reglas para todo el archivo:
 
 No escribas la carpeta .railway/ ni pidas ningún plan a Railway. Una sola pasada: escribe los archivos
 y para; make ci-lint lo lanzo yo. Si aun así lo ejecutas y corriges algo, dímelo explícitamente.
-Commitea en esta rama.
+Commitea en esta rama
 ```
 
-**Qué salió:**
+**Qué salió:** antes de escribir, el agente vio que el prompt se contradecía: `make test` pasa por
+`make db-up`, que levanta con compose su propio `db-test` en el 54411, el mismo puerto que el
+contenedor de servicio, así que en GitHub el trabajo `test` habría muerto con «port is already
+allocated» (y `make ci-lint` no lo habría cantado: actionlint no ejecuta nada). Me preguntó y elegí
+que `db-up` no levante compose cuando `CI` está definido. Resolvió los SHA con `git ls-remote` (no
+tenía `gh`) y leyó el `action.yml` de railwayapp/config, cuya entrada es `railway-token`, no `token`.
+No ejecutó `make ci-lint` (solo un parseo del YAML y `make -n db-up`). Commit ebbd6d3.
 
-> Después, a mano: `make ci-lint; echo "código: $?"` → tiene que quedarse en silencio con código 0.
+`make ci-lint; echo "código: $?"`: la primera vez solo salió la descarga de la imagen de Docker
+(digest `sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667`); al relanzarlo,
+solo `código: 0`. Limpio a la primera.
 
 ---
 
-## Prompt 4 — Parte B: corrección (solo si make ci-lint canta)
+## Prompt 4 — Parte B: corrección
 
-**Modelo:** Opus 5.5
-**Herramienta:** Claude Code
-
-```
-make ci-lint ha devuelto esto:
-
-<pegar la salida literal y el código de salida>
-
-Corrige solo lo que señala, en una sola pasada, y explícame cada aviso.
-```
-
-**Qué salió:**
+No hizo falta: `make ci-lint` salió en silencio con código 0 a la primera.
 
 ---
 
