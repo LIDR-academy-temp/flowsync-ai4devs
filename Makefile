@@ -14,7 +14,7 @@ BACKEND  := backend
 FRONTEND := frontend
 
 .DEFAULT_GOAL := help
-.PHONY: test-unit test-e2e ui test-ui test-web hooks help setup start install env db-up db-down migrate seed db-readonly copia-produccion test clean
+.PHONY: test-unit test-e2e ui test-ui test-web hooks help setup start install env db-up db-down migrate seed db-readonly copia-produccion db-test-up migrate-test test image image-run image-stop ci-lint clean
 
 # La ayuda se genera a partir de los comentarios `## ...` de cada target, para
 # que no haya un segundo listado que mantener a mano y que pueda divergir.
@@ -115,13 +115,28 @@ COPIA ?= backups/produccion-2026-10-02.dump
 copia-produccion: migrate ## Carga la copia de producción SEUDONIMIZADA en desarrollo (sustituye sus datos)
 	@bash $(BACKEND)/database/copia-produccion.sh "$(COPIA)"
 
-test: migrate ## Corre los tests del backend contra la base de pruebas
+# Los tests solo necesitan la base de pruebas. En CI (GitHub Actions pone CI=true)
+# ya la levanta el contenedor de servicio del trabajo en el mismo 54411, y un
+# segundo contenedor en ese puerto chocaría con él: allí no se toca compose.
+db-test-up:
+	@if [ "$$CI" = "true" ]; then \
+		echo "🐘 CI: la base de pruebas es el contenedor de servicio del trabajo (54411)."; \
+	else \
+		echo "🐘 Levantando PostgreSQL de pruebas (db-test)..."; \
+		docker compose up -d --wait db-test; \
+	fi
+
+migrate-test: db-test-up ## Migra solo la base de pruebas
+	@echo "🗃️  Migrando la base de pruebas..."
+	@cd $(BACKEND) && NODE_ENV=test node ace migration:run
+
+test: migrate-test ## Corre los tests del backend contra la base de pruebas
 	@cd $(BACKEND) && npm test
 
-test-unit: migrate ## Solo la suite unitaria (sin servidor ni base de datos)
+test-unit: migrate-test ## Solo la suite unitaria (sin servidor ni base de datos)
 	@cd $(BACKEND) && node ace test unit
 
-test-e2e: migrate ## Solo la suite funcional: peticiones HTTP reales contra la base de pruebas
+test-e2e: migrate-test ## Solo la suite funcional: peticiones HTTP reales contra la base de pruebas
 	@cd $(BACKEND) && node ace test functional
 
 # ---------------------------------------------------------------------------
@@ -152,6 +167,46 @@ test-web: ## Corre el recorrido de navegador (Playwright; necesita la aplicació
 hooks: ## Activa los hooks de git del repo (pre-push: make test-ui); una vez por clon
 	@git config core.hooksPath .githooks
 	@echo "✅ Hooks activados (core.hooksPath = .githooks). Antes de cada push correrá: make test-ui"
+
+# ---------------------------------------------------------------------------
+# imagen de la API (backend/Dockerfile)
+# ---------------------------------------------------------------------------
+
+IMAGE_NAME := flowsync-api
+IMAGE      := $(IMAGE_NAME):local
+# Puerto del host al que se amarra el 3333 del contenedor. Otro: make image-run IMAGE_PORT=<puerto>
+IMAGE_PORT ?= 3334
+
+image: ## Construye la imagen de la API (flowsync-api:local)
+	@docker build -t $(IMAGE) $(BACKEND)
+
+# La configuración entra al arrancar: backend/.env como archivo de entorno, y encima
+# lo que cambia dentro de un contenedor. HOST=0.0.0.0 para que se le alcance desde
+# fuera; DB_HOST apunta a la base de desarrollo publicada en el host (54410).
+# El curl reintenta mientras el servidor arranca.
+image-run: ## Arranca la imagen en segundo plano (puerto IMAGE_PORT, por defecto 3334)
+	@docker run -d --name $(IMAGE_NAME) \
+		-p $(IMAGE_PORT):3333 \
+		--env-file $(BACKEND)/.env \
+		-e HOST=0.0.0.0 \
+		-e DB_HOST=host.docker.internal \
+		-e APP_URL=http://localhost:$(IMAGE_PORT) \
+		$(IMAGE) >/dev/null
+	@echo "🐳 $(IMAGE_NAME) arrancado en http://localhost:$(IMAGE_PORT)"
+	@curl -s --retry 10 --retry-all-errors --retry-delay 1 http://localhost:$(IMAGE_PORT)/; echo
+
+image-stop: ## Para y borra el contenedor de la API
+	@docker stop $(IMAGE_NAME) >/dev/null && docker rm $(IMAGE_NAME) >/dev/null
+	@echo "🛑 $(IMAGE_NAME) parado y borrado"
+
+# ---------------------------------------------------------------------------
+# pipeline (.github/workflows/)
+# ---------------------------------------------------------------------------
+
+# Sin instalar nada: la imagen oficial de actionlint, con el repo montado en solo
+# lectura. Sin argumentos, actionlint busca .github/workflows/ desde /repo.
+ci-lint: ## Valida los workflows de .github/workflows/ con actionlint
+	@docker run --rm -v "$(CURDIR):/repo:ro" -w /repo rhysd/actionlint:1.7.12 -color
 
 # ---------------------------------------------------------------------------
 # start

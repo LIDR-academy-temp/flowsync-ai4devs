@@ -1,0 +1,220 @@
+name: CI
+
+# Cinco trabajos, cada uno responde a una pregunta:
+#
+#   test            ¿la suite del backend pasa en una máquina limpia?
+#   image           ¿la imagen de la API se puede fabricar desde cero?
+#   lint-workflows  ¿los propios archivos del pipeline son válidos?
+#   infra-plan      ¿qué cambiaría en la infraestructura si este PR se fusiona?
+#   infra-apply     aplica ese plan cuando el PR se fusiona.
+#
+# `closed` está en los tipos solo para infra-apply; los otros cuatro trabajos no
+# corren en ese evento. El push a main repite test, image y lint-workflows sobre
+# lo que ya se ha fusionado.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+  push:
+    branches: [main]
+
+# Nada por defecto: cada trabajo declara los permisos que usa.
+permissions: {}
+
+# Un push nuevo a la misma rama (o al mismo PR) cancela la ejecución anterior.
+# El cierre de un PR no se cancela: es el que aplica la infraestructura, y
+# cortarlo a medias dejaría el entorno en un estado que nadie ha revisado.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event.action != 'closed' }}
+
+defaults:
+  run:
+    # Con `shell: bash` explícito, Actions añade `-o pipefail`: el `tee` del
+    # trabajo test no se traga el código de salida de `make test`.
+    shell: bash
+
+jobs:
+  test:
+    name: Suite del backend
+    if: github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    # La misma base que `db-test` de compose.yaml, en el puerto que espera
+    # backend/.env.test. Actions no empieza los pasos hasta que el healthcheck
+    # pasa; por TCP, como en compose, para no dar por sana la base temporal del
+    # primer arranque.
+    services:
+      postgres:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_USER: flowsync
+          POSTGRES_PASSWORD: flowsync
+          POSTGRES_DB: flowsync_test
+        ports:
+          - 54411:5432
+        options: >-
+          --health-cmd "pg_isready -h 127.0.0.1 -U flowsync -d flowsync_test"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 30
+          --health-start-period 5s
+    env:
+      # Lo que `start/env.ts` exige y `.env.test` no trae (allí solo están
+      # SESSION_DRIVER y las DB_*). Ninguna es un secreto: `APP_KEY` existe para
+      # que la validación pase y solo firma lo que crea la propia suite.
+      NODE_ENV: test
+      TZ: UTC
+      PORT: 3333
+      HOST: 127.0.0.1
+      LOG_LEVEL: silent
+      APP_KEY: clave-de-ci-sin-valor-secreto
+      APP_URL: http://127.0.0.1:3333
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Instalar dependencias del backend
+        working-directory: backend
+        run: npm ci
+
+      # El mismo comando que en local. Con CI=true, el Makefile no levanta
+      # compose: la base de pruebas es el contenedor de servicio de arriba.
+      - name: make test
+        run: make test 2>&1 | tee "$RUNNER_TEMP/make-test.log"
+
+      # Japa cierra con una línea como `Tests  8 passed, 1 failed (9)`. Va al
+      # resumen de la ejecución también si la suite falla, para ver cuántos.
+      - name: Recuento de tests en el resumen
+        if: ${{ !cancelled() }}
+        run: |
+          linea="$(sed 's/\x1b\[[0-9;]*m//g' "$RUNNER_TEMP/make-test.log" | grep -E '^Tests[[:space:]]' | tail -n1 || true)"
+          {
+            echo "### Suite del backend"
+            echo
+            if [ -z "$linea" ]; then
+              echo "La suite no llegó a imprimir el recuento: mira el registro del paso \`make test\`."
+            else
+              cuenta() { echo "$linea" | grep -oE "[0-9]+ $1" | grep -oE '[0-9]+' || echo 0; }
+              echo "| Total | Pasan | Fallan | Omitidos | Pendientes |"
+              echo "|---:|---:|---:|---:|---:|"
+              echo "| $(echo "$linea" | grep -oE '\([0-9]+\)' | tr -d '()') | $(cuenta passed) | $(cuenta failed) | $(cuenta skipped) | $(cuenta todo) |"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  image:
+    name: Imagen de la API
+    if: github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # LÍMITE: este trabajo afirma que la imagen se CONSTRUYE desde cero, no
+      # que ARRANQUE. No ejecuta el contenedor: arrancar pide una base de datos
+      # y la configuración de un entorno, y eso es otra pregunta. Una imagen que
+      # se construye aquí puede caerse al arrancar.
+      - name: make image
+        run: make image
+
+  lint-workflows:
+    name: Workflows válidos
+    if: github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: make ci-lint
+        run: make ci-lint
+
+  # Solo en PRs del propio repositorio: un PR desde un fork no recibe los
+  # secretos y RAILWAY_TOKEN llegaría vacío. Actions no filtra trabajos por
+  # ruta, así que el primer paso mira si el PR toca .railway/ y, si no, el resto
+  # de pasos no corre.
+  infra-plan:
+    name: Plan de infraestructura
+    if: >-
+      github.event_name == 'pull_request'
+      && github.event.action != 'closed'
+      && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      # Publicar o actualizar el comentario del plan (y leer los archivos del PR).
+      pull-requests: write
+    steps:
+      - name: ¿El PR toca .railway/?
+        id: cambios
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          if gh api --paginate "repos/$GITHUB_REPOSITORY/pulls/$PR/files" --jq '.[].filename' | grep -q '^\.railway/'; then
+            echo "railway=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "railway=false" >> "$GITHUB_OUTPUT"
+            echo "El PR no toca .railway/: no hay plan que calcular." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - if: steps.cambios.outputs.railway == 'true'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # Calcula el plan, lo guarda como artefacto (es lo que aplicará el merge,
+      # sin recalcular) y lo publica como comentario del PR.
+      - if: steps.cambios.outputs.railway == 'true'
+        uses: railwayapp/config@9e17d413dbe219f19d62538d9c06b5dbb5e9abf8 # v1.2.0
+        with:
+          command: plan
+          railway-token: ${{ secrets.RAILWAY_TOKEN }}
+
+  infra-apply:
+    name: Aplicar infraestructura
+    if: >-
+      github.event_name == 'pull_request'
+      && github.event.action == 'closed'
+      && github.event.pull_request.merged == true
+      && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      # Descargar el artefacto del plan que dejó infra-plan en otra ejecución.
+      actions: read
+      # Leer los archivos del PR.
+      pull-requests: read
+    steps:
+      - name: ¿El PR toca .railway/?
+        id: cambios
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          if gh api --paginate "repos/$GITHUB_REPOSITORY/pulls/$PR/files" --jq '.[].filename' | grep -q '^\.railway/'; then
+            echo "railway=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "railway=false" >> "$GITHUB_OUTPUT"
+            echo "El PR no tocaba .railway/: no hay plan que aplicar." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - if: steps.cambios.outputs.railway == 'true'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # Aplica exactamente el plan revisado en el PR. Si el entorno o .railway/
+      # han cambiado desde entonces, falla en vez de aplicar algo sin revisar.
+      - if: steps.cambios.outputs.railway == 'true'
+        uses: railwayapp/config@9e17d413dbe219f19d62538d9c06b5dbb5e9abf8 # v1.2.0
+        with:
+          command: apply
+          railway-token: ${{ secrets.RAILWAY_TOKEN }}

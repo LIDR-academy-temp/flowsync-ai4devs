@@ -23,7 +23,7 @@ make migrate      # migra LAS DOS (la de pruebas con NODE_ENV=test)
 make seed         # 5 personas y 40 tareas de desarrollo (idempotente, solo en development)
 make db-readonly  # rol flowsync_ro (solo SELECT, también en tablas futuras) en la base de desarrollo; contraseña en DB_RO_PASSWORD
 make copia-produccion  # carga SEUDONIMIZADA la copia de producción en desarrollo, sustituyendo sus datos (solo la lanza una persona)
-make test         # db-up + migrate + npm test
+make test         # db-test + su migración + npm test (en CI usa el contenedor de servicio)
 make db-down      # para las dos; la de desarrollo conserva el volumen
 ```
 
