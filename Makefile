@@ -14,7 +14,7 @@ BACKEND  := backend
 FRONTEND := frontend
 
 .DEFAULT_GOAL := help
-.PHONY: test-unit test-e2e ui test-ui test-web hooks help setup start install env db-up db-down migrate seed db-readonly copia-produccion test clean
+.PHONY: test-unit test-e2e ui test-ui test-web hooks help setup start install env db-up db-down migrate seed db-readonly copia-produccion test clean image image-run image-stop ci-lint
 
 # La ayuda se genera a partir de los comentarios `## ...` de cada target, para
 # que no haya un segundo listado que mantener a mano y que pueda divergir.
@@ -67,9 +67,15 @@ env:
 
 # `--wait` bloquea hasta que los dos healthchecks pasan: la imagen crea la base
 # la primera vez y no acepta conexiones mientras tanto.
+# Con DB_EXTERNA definida no se levanta nada: la base ya la pone otro (en CI, el
+# servicio de .github/workflows/ci.yml en el 54411) y Compose chocaría con su puerto.
 db-up: ## Levanta las bases de desarrollo (54410) y de pruebas (54411)
-	@echo "🐘 Levantando PostgreSQL (db y db-test)..."
-	@docker compose up -d --wait db db-test
+	@if [ -n "$(DB_EXTERNA)" ]; then \
+		echo "🐘 DB_EXTERNA definida: no se levanta Compose, se usa la base que ya escucha."; \
+	else \
+		echo "🐘 Levantando PostgreSQL (db y db-test)..."; \
+		docker compose up -d --wait db db-test; \
+	fi
 
 # Sin `-v`: el volumen de desarrollo se conserva. La de pruebas es tmpfs y se vacía sola.
 db-down: ## Para las bases (la de desarrollo conserva sus datos)
@@ -195,6 +201,57 @@ start: db-up ## Levanta las bases, el backend y el frontend
 	( cd $(FRONTEND) && npm run dev; \
 	  echo ""; echo "⚠️  El frontend se ha parado. Cerrando el backend."; kill -INT 0 ) & \
 	wait
+
+# ---------------------------------------------------------------------------
+# imagen Docker de la API (backend/Dockerfile)
+# ---------------------------------------------------------------------------
+
+IMAGE      := flowsync-api:local
+CONTAINER  := flowsync-api-local
+IMAGE_PORT ?= 3334
+
+# En Docker Desktop (macOS/Windows) host.docker.internal ya resuelve; en Linux hay
+# que mapearlo a la puerta de enlace del host.
+ifeq ($(shell uname -s),Linux)
+IMAGE_ADD_HOST := --add-host=host.docker.internal:host-gateway
+endif
+
+image: ## Construye la imagen de la API (flowsync-api:local)
+	@docker build -t $(IMAGE) $(BACKEND)
+
+# Lee backend/.env y pisa lo que dentro del contenedor no vale: HOST tiene que
+# escuchar en todas las interfaces, localhost es el propio contenedor (la base está
+# en el host) y Docker no expande el ${HOST}:${PORT} de APP_URL.
+# Pasa antes por image-stop para poder relanzarlo sin chocar con el nombre.
+image-run: image-stop ## Arranca la imagen en segundo plano (IMAGE_PORT=3334) y le hace un curl
+	@if [ ! -f $(BACKEND)/.env ]; then \
+		echo "❌ Falta $(BACKEND)/.env. Ejecuta primero: make setup"; exit 1; \
+	fi
+	@docker run -d --name $(CONTAINER) \
+		-p $(IMAGE_PORT):3333 \
+		--env-file $(BACKEND)/.env \
+		-e HOST=0.0.0.0 \
+		-e DB_HOST=host.docker.internal \
+		-e APP_URL=http://localhost:$(IMAGE_PORT) \
+		$(IMAGE_ADD_HOST) \
+		$(IMAGE)
+	@echo "⏳ Esperando a que la API levante en http://localhost:$(IMAGE_PORT)/ ..."
+	@sleep 5
+	@curl -s http://localhost:$(IMAGE_PORT)/ || { \
+		echo ""; echo "❌ No responde. Mira: docker logs $(CONTAINER)"; exit 1; }
+	@echo ""
+
+image-stop: ## Para y borra el contenedor de la API (no falla si no existe)
+	@docker rm -f $(CONTAINER) >/dev/null 2>&1 || true
+
+# ---------------------------------------------------------------------------
+# pipeline (.github/workflows/)
+# ---------------------------------------------------------------------------
+
+# actionlint en su imagen oficial, sin instalar nada: monta la raíz del repo y
+# actionlint encuentra solo .github/workflows/. Es el mismo comando en local y en CI.
+ci-lint: ## Valida los workflows de .github/workflows/ con actionlint (en Docker)
+	@docker run --rm -v "$(CURDIR):/repo" --workdir /repo rhysd/actionlint:1.7.12 -color
 
 # ---------------------------------------------------------------------------
 # clean
