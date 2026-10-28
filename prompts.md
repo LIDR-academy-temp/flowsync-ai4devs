@@ -75,4 +75,53 @@ dependencias de producción. Explícame en una frase la causa.
 No construyas la imagen: lo haré yo.
 ```
 
-**Qué salió:** (opcional, una línea) funcionó, se creo el archivo de doker y actulizo archivos
+**Qué salió:** (opcional, una línea) funcionó, se corrigio y la imagen de docker ahora funciona corre bien y responde a request
+
+
+
+## Prompt 3
+
+**Modelo:** Sonnet 5.5
+**Herramienta:** Claude Code
+
+```
+Crea .github/workflows/ci.yml y un atajo ci-lint en el Makefile de la raíz.
+
+ci-lint: valida todos los workflows de .github/workflows/ con actionlint sin
+instalar nada, usando la imagen oficial rhysd/actionlint:1.7.12, montando la
+raíz del repositorio y con -color.
+
+El workflow tiene cinco trabajos; pon en cada uno un comentario con la
+pregunta que responde y lo que no comprueba:
+
+- test: ¿la suite del backend pasa en una máquina limpia? PostgreSQL como
+  contenedor de servicio con pgvector/pgvector:pg17, publicado en 54411,
+  usuario flowsync, contraseña flowsync, base flowsync_test, esperando a que
+  esté sano. Ejecuta exactamente make test, sin node ace a mano. Las
+  variables que exige backend/start/env.ts y no están en backend/.env.test
+  van en el entorno del trabajo, como hace openapi.yml. Publica el recuento
+  de tests en $GITHUB_STEP_SUMMARY.
+- image: ¿la imagen se puede fabricar desde cero? make image, sin arrancar
+  el contenedor, y deja ese límite escrito en un comentario.
+- lint-workflows: ¿los archivos del pipeline son válidos? make ci-lint.
+- infra-plan: ¿qué cambiaría en la infraestructura? Solo en pull requests
+  que toquen .railway/** y que vengan del propio repositorio, no de un fork.
+  Acción railwayapp/config v1.2.0 con command: plan y el secreto
+  RAILWAY_TOKEN, publicando el plan como comentario del PR.
+- infra-apply: lo mismo con command: apply, solo cuando el PR se fusiona.
+
+Reglas para todo el archivo:
+- Permisos mínimos declarados por trabajo, nunca write-all.
+- Cada acción de terceros fijada al SHA completo de su commit, con la
+  etiqueta en un comentario al lado. Resuelve los SHAs consultando la red,
+  no de memoria.
+- test, image y lint-workflows en paralelo.
+- Cancelar la ejecución anterior si llega otro push a la misma rama.
+
+No crees la carpeta .railway/ ni pongas ningún secreto en ningún archivo.
+Si make test no puede correr tal cual en CI (por ejemplo, porque levanta
+Docker Compose o migra la base de desarrollo), dímelo antes de cambiar el
+Makefile.
+```
+
+**Qué salió:** (opcional, una línea) funcionó, actulizo los archivos
