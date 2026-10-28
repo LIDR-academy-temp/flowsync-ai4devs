@@ -14,7 +14,7 @@ BACKEND  := backend
 FRONTEND := frontend
 
 .DEFAULT_GOAL := help
-.PHONY: test-unit test-e2e ui test-ui test-web hooks help setup start install env db-up db-down migrate seed db-readonly copia-produccion test clean
+.PHONY: test-unit test-e2e ui test-ui test-web hooks help setup start install env db-up db-down migrate seed db-readonly copia-produccion test clean image image-run image-stop
 
 # La ayuda se genera a partir de los comentarios `## ...` de cada target, para
 # que no haya un segundo listado que mantener a mano y que pueda divergir.
@@ -195,6 +195,30 @@ start: db-up ## Levanta las bases, el backend y el frontend
 	( cd $(FRONTEND) && npm run dev; \
 	  echo ""; echo "⚠️  El frontend se ha parado. Cerrando el backend."; kill -INT 0 ) & \
 	wait
+
+# ---------------------------------------------------------------------------
+# imagen de Docker de la API (backend/Dockerfile)
+# ---------------------------------------------------------------------------
+
+IMAGE_PORT ?= 3334
+
+image: ## Construye la imagen de la API: flowsync-api:local
+	@docker build -t flowsync-api:local $(BACKEND)
+
+# backend/.env aporta la configuración; los -e van después y la pisan: dentro del
+# contenedor hay que escuchar en 0.0.0.0 y la base de datos está en el host.
+image-run: ## Arranca la imagen en segundo plano (IMAGE_PORT, por defecto 3334)
+	@docker run -d --name flowsync-api-local -p $(IMAGE_PORT):3333 \
+		--env-file $(BACKEND)/.env \
+		-e HOST=0.0.0.0 \
+		-e DB_HOST=host.docker.internal \
+		-e APP_URL=http://localhost:$(IMAGE_PORT) \
+		flowsync-api:local
+	@sleep 3
+	@curl -s http://localhost:$(IMAGE_PORT)/
+
+image-stop: ## Para y borra el contenedor flowsync-api-local
+	@docker rm -f flowsync-api-local
 
 # ---------------------------------------------------------------------------
 # clean
