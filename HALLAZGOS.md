@@ -98,6 +98,21 @@ de `ci.yml` afirma:
   `action_required`: el repo del curso no ejecuta las Actions de quien colabora por primera vez hasta
   que alguien las aprueba. Ninguno de los cinco trabajos ha corrido todavía en ningún runner, y cuando
   corran, `infra-plan` e `infra-apply` se saltarán igual: el PR viene de un fork y no recibe secretos.
+- **Que el filtro de `.railway/` diga la verdad.** En `infra-plan` e `infra-apply` (`ci.yml:164-170`
+  y `207-213`), `gh api ... --paginate | grep -q '^\.railway/'` corre con `pipefail`: `grep -q` sale en
+  la primera coincidencia, `gh` puede morir por SIGPIPE mientras sigue escribiendo y el `if` cae al
+  `else`. Con un PR grande que sí toca `.railway/`, el plan o el apply se saltan **y el trabajo sale
+  en verde**. No se corrigió.
+- **Que el recuento de tests llegue siempre al resumen.** Si Japa muere antes de imprimir la línea
+  `Tests` (una migración rota, un cambio de formato), el `grep` sin coincidencias aborta el paso por
+  `pipefail` y el mensaje de reserva (`ci.yml:104`) no se escribe nunca. No se corrigió.
+- **Que la imagen llegue a la base.** `make image-run` dice arrancar «contra la base de desarrollo»,
+  pero `db` solo escucha en `127.0.0.1:54410` (`compose.yaml`) y desde el contenedor se llega por la
+  IP del puente de Docker, no por el loopback. La raíz `/` respondió porque no toca la base; una
+  ruta que sí la toque probablemente falle en Docker nativo de Linux. No lo comprobé.
+- **Los dos primeros los encontró la revisión adversarial del PR, no actionlint.** `make ci-lint`
+  salió limpio con los dos dentro: actionlint valida la sintaxis y las expresiones, no lo que hace
+  un `run:` en un runner.
 - **Dos piezas que solo existen en GitHub.** Que `make db-up` se salte compose con `CI` definido y que
   el recuento de la línea `Tests …` de Japa llegue al resumen no se han probado en ningún runner:
   actionlint valida la sintaxis, no ejecuta nada.
