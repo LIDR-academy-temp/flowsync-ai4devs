@@ -14,7 +14,7 @@ BACKEND  := backend
 FRONTEND := frontend
 
 .DEFAULT_GOAL := help
-.PHONY: test-unit test-e2e ui test-ui test-web hooks help setup start install env db-up db-down migrate seed db-readonly copia-produccion test clean image image-run image-stop
+.PHONY: test-unit test-e2e ui test-ui test-web hooks help setup start install env db-up db-down migrate seed db-readonly copia-produccion test clean image image-run image-stop ci-lint
 
 # La ayuda se genera a partir de los comentarios `## ...` de cada target, para
 # que no haya un segundo listado que mantener a mano y que pueda divergir.
@@ -67,9 +67,17 @@ env:
 
 # `--wait` bloquea hasta que los dos healthchecks pasan: la imagen crea la base
 # la primera vez y no acepta conexiones mientras tanto.
+#
+# En CI (GitHub Actions define CI=true) no se levanta nada: la base de pruebas es
+# el contenedor de servicio del trabajo `test` de .github/workflows/ci.yml, que ya
+# ocupa el 54411, y db-test chocaría con él. Fuera de CI hace lo mismo que antes.
 db-up: ## Levanta las bases de desarrollo (54410) y de pruebas (54411)
-	@echo "🐘 Levantando PostgreSQL (db y db-test)..."
-	@docker compose up -d --wait db db-test
+	@if [ "$${CI:-}" = "true" ]; then \
+		echo "🐘 CI: la base de pruebas es el contenedor de servicio del trabajo; no se levanta compose."; \
+	else \
+		echo "🐘 Levantando PostgreSQL (db y db-test)..."; \
+		docker compose up -d --wait db db-test; \
+	fi
 
 # Sin `-v`: el volumen de desarrollo se conserva. La de pruebas es tmpfs y se vacía sola.
 db-down: ## Para las bases (la de desarrollo conserva sus datos)
@@ -78,9 +86,16 @@ db-down: ## Para las bases (la de desarrollo conserva sus datos)
 # La de pruebas es efímera: tras un `db-down` está vacía y hay que migrarla otra
 # vez, por eso `test` también pasa por aquí. NODE_ENV=test hace que Adonis cargue
 # .env.test y apunte a db-test.
+#
+# En CI no hay base de desarrollo ni backend/.env (ver db-up), así que ahí solo se
+# migra la de pruebas. Fuera de CI hace lo mismo que antes.
 migrate: db-up ## Migra las dos bases: desarrollo y pruebas
-	@echo "🗃️  Migrando la base de desarrollo..."
-	@cd $(BACKEND) && node ace migration:run
+	@if [ "$${CI:-}" = "true" ]; then \
+		echo "🗃️  CI: no hay base de desarrollo, solo se migra la de pruebas."; \
+	else \
+		echo "🗃️  Migrando la base de desarrollo..."; \
+		cd $(BACKEND) && node ace migration:run; \
+	fi
 	@echo "🗃️  Migrando la base de pruebas..."
 	@cd $(BACKEND) && NODE_ENV=test node ace migration:run
 
@@ -207,6 +222,26 @@ image-stop: ## Para y borra el contenedor de la imagen
 	@docker stop $(IMAGE_CONTAINER) >/dev/null
 	@docker rm $(IMAGE_CONTAINER) >/dev/null
 	@echo "🛑 $(IMAGE_CONTAINER) parado y borrado."
+
+# ---------------------------------------------------------------------------
+# pipeline (.github/workflows)
+# ---------------------------------------------------------------------------
+
+ACTIONLINT_IMAGE := rhysd/actionlint:1.7.12
+
+# actionlint desde su imagen oficial: no se instala nada, ni aquí ni en el runner,
+# y la versión es la misma en los dos sitios. Lee .github/workflows/ desde /repo.
+#
+# - La raíz se monta con `pwd -W` si existe: en Git Bash da C:/Users/..., que es lo
+#   que entiende Docker Desktop (/c/Users/... no). En macOS y Linux `pwd -W` no
+#   existe, falla sin salida y se usa `pwd`.
+# - MSYS_NO_PATHCONV=1 impide que Git Bash convierta /repo, en -v y en -w, en una
+#   ruta de Windows; en macOS y Linux se ignora.
+ci-lint: ## Valida los workflows de .github/workflows/ con actionlint (en Docker)
+	@MSYS_NO_PATHCONV=1 docker run --rm \
+		-v "$$(pwd -W 2>/dev/null || pwd):/repo" \
+		-w /repo \
+		$(ACTIONLINT_IMAGE) -color
 
 # ---------------------------------------------------------------------------
 # start
