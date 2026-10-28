@@ -14,7 +14,7 @@ BACKEND  := backend
 FRONTEND := frontend
 
 .DEFAULT_GOAL := help
-.PHONY: test-unit test-e2e ui test-ui test-web hooks help setup start install env db-up db-down migrate seed db-readonly copia-produccion test clean
+.PHONY: test-unit test-e2e ui test-ui test-web hooks help setup start install env db-up db-down migrate seed db-readonly copia-produccion test clean image image-run image-stop ci-lint
 
 # La ayuda se genera a partir de los comentarios `## ...` de cada target, para
 # que no haya un segundo listado que mantener a mano y que pueda divergir.
@@ -67,9 +67,17 @@ env:
 
 # `--wait` bloquea hasta que los dos healthchecks pasan: la imagen crea la base
 # la primera vez y no acepta conexiones mientras tanto.
+#
+# Con DB_EXTERNA definida no se levanta nada: la base ya la pone otro, en el
+# mismo puerto. Es el caso del pipeline (.github/workflows/ci.yml), donde
+# PostgreSQL es un contenedor de servicio en el 54411 y compose chocaría con él.
 db-up: ## Levanta las bases de desarrollo (54410) y de pruebas (54411)
-	@echo "🐘 Levantando PostgreSQL (db y db-test)..."
-	@docker compose up -d --wait db db-test
+	@if [ -n "$$DB_EXTERNA" ]; then \
+		echo "🐘 DB_EXTERNA definida: la base la pone otro, no se levanta compose."; \
+	else \
+		echo "🐘 Levantando PostgreSQL (db y db-test)..."; \
+		docker compose up -d --wait db db-test; \
+	fi
 
 # Sin `-v`: el volumen de desarrollo se conserva. La de pruebas es tmpfs y se vacía sola.
 db-down: ## Para las bases (la de desarrollo conserva sus datos)
@@ -195,6 +203,56 @@ start: db-up ## Levanta las bases, el backend y el frontend
 	( cd $(FRONTEND) && npm run dev; \
 	  echo ""; echo "⚠️  El frontend se ha parado. Cerrando el backend."; kill -INT 0 ) & \
 	wait
+
+# ---------------------------------------------------------------------------
+# imagen de la API (backend/Dockerfile)
+# ---------------------------------------------------------------------------
+
+IMAGE_TAG       := flowsync-api:local
+IMAGE_CONTAINER := flowsync-api-local
+IMAGE_PORT      ?= 3334
+
+image: ## Construye la imagen de la API (flowsync-api:local)
+	@docker build -t $(IMAGE_TAG) $(BACKEND)
+
+# La configuración sale de backend/.env, salvo tres valores que dentro del
+# contenedor tienen que ser otros: HOST para escuchar fuera del loopback del
+# contenedor, DB_HOST para llegar a la base publicada en el host y APP_URL con
+# el puerto publicado. `--add-host` hace que host.docker.internal resuelva
+# también en Docker sobre Linux (en Docker Desktop ya existe).
+# El bucle espera a que el servidor acepte conexiones (cualquier respuesta HTTP
+# vale, también un 404) antes del curl final, como mucho unos 10 segundos.
+image-run: ## Arranca la imagen en segundo plano en IMAGE_PORT (por defecto 3334)
+	@if [ ! -f $(BACKEND)/.env ]; then \
+		echo "❌ Falta $(BACKEND)/.env. Ejecuta primero: make setup"; exit 1; \
+	fi
+	@docker run -d --name $(IMAGE_CONTAINER) \
+		-p $(IMAGE_PORT):3333 \
+		--env-file $(BACKEND)/.env \
+		-e HOST=0.0.0.0 \
+		-e DB_HOST=host.docker.internal \
+		-e APP_URL=http://localhost:$(IMAGE_PORT) \
+		--add-host=host.docker.internal:host-gateway \
+		$(IMAGE_TAG) >/dev/null
+	@echo "🐳 $(IMAGE_CONTAINER) arrancado en http://localhost:$(IMAGE_PORT)"
+	@for i in $$(seq 1 20); do \
+		curl -s -o /dev/null http://localhost:$(IMAGE_PORT)/ && break; sleep 0.5; \
+	done
+	@curl -s http://localhost:$(IMAGE_PORT)/; echo
+
+image-stop: ## Para y borra el contenedor de la imagen
+	@docker stop $(IMAGE_CONTAINER) >/dev/null
+	@docker rm $(IMAGE_CONTAINER) >/dev/null
+	@echo "🧹 $(IMAGE_CONTAINER) parado y borrado."
+
+# ---------------------------------------------------------------------------
+# pipeline (.github/workflows/)
+# ---------------------------------------------------------------------------
+
+# Con la imagen oficial de actionlint, para no instalar nada: se monta la raíz
+# del repo y actionlint encuentra solo los workflows de .github/workflows/.
+ci-lint: ## Valida los workflows de .github/workflows/ con actionlint
+	@docker run --rm -v "$(CURDIR)":/repo --workdir /repo rhysd/actionlint:1.7.12 -color
 
 # ---------------------------------------------------------------------------
 # clean

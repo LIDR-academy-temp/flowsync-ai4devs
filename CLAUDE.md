@@ -27,6 +27,8 @@ make test         # db-up + migrate + npm test
 make db-down      # para las dos; la de desarrollo conserva el volumen
 ```
 
+Con `DB_EXTERNA` definida, `make db-up` no levanta compose: la base la pone otro en el mismo puerto. Lo usa el pipeline, donde `db-test` es un contenedor de servicio; en local no se define.
+
 El SQL del rol de solo lectura está en `backend/database/readonly-role.sql`. Ojo al probarlo: dentro del contenedor la imagen tiene `trust` para `127.0.0.1`, así que una conexión por TCP desde dentro no comprueba la contraseña; hay que conectar desde el host por el puerto 54410. `DB_RO_PASSWORD` la lee solo el Makefile, por eso no está en el schema de `start/env.ts`. Ese rol puede leer **todo** lo de la base, incluidos los hashes de `users` y `auth_access_tokens`: no restaures en ella datos reales (ver `docs/incidencias/INC-0412-tareas-que-no-salen.md`).
 
 Para consultar el esquema real hay un servidor MCP `dbhub` (DBHub 1.4.0 de Bytebase) en `.mcp.json`, configurado en `backend/database/dbhub.toml`: se conecta como `flowsync_ro`, con `execute_sql` en `readonly = true` y `search_objects` declarada (al listar alguna herramienta, DBHub desactiva las demás). La contraseña no está en ningún fichero: el lanzador de `.mcp.json` la lee de `backend/.env` y la pasa solo al proceso de DBHub, que sustituye `${DB_RO_PASSWORD}`. Necesita `make db-up` y `make db-readonly` hechos antes, y Node >= 22.5.
@@ -74,6 +76,19 @@ npm run build     # tsc -b && vite build (aquí se hace el typecheck)
 npm run lint      # oxlint (NO eslint)
 npm run format    # prettier --write .
 ```
+
+### Imagen y pipeline (desde la raíz)
+
+```bash
+make image        # construye la imagen de la API (backend/Dockerfile) como flowsync-api:local
+make image-run    # la arranca como flowsync-api-local en IMAGE_PORT (3334), con backend/.env, y hace un curl
+make image-stop   # para y borra el contenedor
+make ci-lint      # valida .github/workflows/ con la imagen oficial de actionlint, sin instalar nada
+```
+
+`backend/Dockerfile` va en dos etapas: la final es `node:24-alpine` solo con `build/` y sus dependencias de producción, con el usuario `node` y sin ningún `.env` (`backend/.dockerignore`). Ninguna variable lleva valor en el Dockerfile: `image-run` la configura con `backend/.env` y fuerza `HOST`, `DB_HOST=host.docker.internal` y `APP_URL`.
+
+El pipeline es `.github/workflows/ci.yml`: `test` (`make test`), `image` (`make image`) y `lint-workflows` (`make ci-lint`) en paralelo, más `infra-plan`/`infra-apply` con `railwayapp/config` en los PR que tocan `.railway/`. Las acciones van fijadas por SHA con la etiqueta en un comentario; al tocar un workflow, `make ci-lint` antes de commitear. Qué afirma cada trabajo y los pasos manuales (secreto `RAILWAY_TOKEN`): `docs/ci.md`.
 
 Las pruebas del frontend, desde la raíz: `make test-ui` comprueba las historias de Storybook sin ventana (Vitest), `make test-web` corre el recorrido de navegador de `frontend/e2e/` (Playwright, con la aplicación levantada) y `make ui` abre el catálogo en http://localhost:6006.
 
