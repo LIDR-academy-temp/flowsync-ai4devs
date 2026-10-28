@@ -84,9 +84,11 @@ jobs:
         working-directory: backend
 
       # El mismo comando que en local. `tee` solo guarda una copia de la salida
-      # para el resumen; con pipefail (el `bash` de Actions lo activa) el paso
-      # falla igual que `make test` si la suite falla.
+      # para el resumen. Un `run` sin `shell:` usa `bash -e {0}`, sin pipefail, y
+      # el paso saldría con el código de `tee`; declarar `shell: bash` lo cambia a
+      # `bash -eo pipefail {0}`, así el paso falla igual que `make test`.
       - name: Correr la suite
+        shell: bash
         run: make test 2>&1 | tee "$RUNNER_TEMP/test.log"
 
       # Corre también si la suite falla: ahí es cuando más interesa el recuento.
