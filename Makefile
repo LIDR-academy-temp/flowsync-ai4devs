@@ -145,7 +145,9 @@ image: ## Construye la imagen de la API (flowsync-api:local)
 #   - APP_URL: el .env la escribe como http://${HOST}:${PORT} y --env-file no
 #     expande variables, así que llegaría tal cual y no sería una URL.
 # El curl reintenta mientras el servidor arranca: justo después del `docker run`
-# todavía no escucha.
+# todavía no escucha. Con Docker Desktop el puerto publicado acepta la conexión
+# igualmente y la corta (curl sale con 56, no con "connection refused"), así que
+# --retry-connrefused no basta: hace falta --retry-all-errors.
 image-run: ## Arranca la imagen en segundo plano en el puerto IMAGE_PORT (por defecto 3334)
 	@docker run -d --name $(IMAGE_CONTAINER) \
 		-p $(IMAGE_PORT):3333 \
@@ -155,7 +157,7 @@ image-run: ## Arranca la imagen en segundo plano en el puerto IMAGE_PORT (por de
 		-e DB_HOST=host.docker.internal \
 		-e APP_URL=http://localhost:$(IMAGE_PORT) \
 		$(IMAGE_TAG)
-	@curl -s --retry 10 --retry-connrefused --retry-delay 1 http://localhost:$(IMAGE_PORT)/
+	@curl -s --retry 10 --retry-all-errors --retry-delay 1 http://localhost:$(IMAGE_PORT)/
 	@echo ""
 
 image-stop: ## Para y borra el contenedor de la imagen
