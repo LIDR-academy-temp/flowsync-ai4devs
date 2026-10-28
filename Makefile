@@ -14,7 +14,7 @@ BACKEND  := backend
 FRONTEND := frontend
 
 .DEFAULT_GOAL := help
-.PHONY: test-unit test-e2e ui test-ui test-web hooks help setup start install env db-up db-down migrate seed db-readonly copia-produccion test clean
+.PHONY: test-unit test-e2e image image-run image-stop ui test-ui test-web hooks help setup start install env db-up db-down migrate seed db-readonly copia-produccion test clean
 
 # La ayuda se genera a partir de los comentarios `## ...` de cada target, para
 # que no haya un segundo listado que mantener a mano y que pueda divergir.
@@ -123,6 +123,43 @@ test-unit: migrate ## Solo la suite unitaria (sin servidor ni base de datos)
 
 test-e2e: migrate ## Solo la suite funcional: peticiones HTTP reales contra la base de pruebas
 	@cd $(BACKEND) && node ace test functional
+
+# ---------------------------------------------------------------------------
+# imagen de la API (backend/Dockerfile)
+# ---------------------------------------------------------------------------
+
+IMAGE_TAG       := flowsync-api:local
+IMAGE_CONTAINER := flowsync-api-local
+# Otro puerto: make image-run IMAGE_PORT=<puerto>
+IMAGE_PORT      ?= 3334
+
+image: ## Construye la imagen de la API (flowsync-api:local)
+	@docker build -t $(IMAGE_TAG) $(BACKEND)
+
+# La configuración es backend/.env, con tres valores pisados encima:
+#   - HOST=0.0.0.0: escuchando en localhost, el servidor solo se oiría a sí mismo
+#     dentro del contenedor y el puerto publicado no llegaría a nada.
+#   - DB_HOST=host.docker.internal: dentro del contenedor, localhost es el propio
+#     contenedor, no la máquina donde corre la base de desarrollo. El --add-host
+#     da ese nombre también en Linux, donde Docker no lo define solo.
+#   - APP_URL: el .env la escribe como http://${HOST}:${PORT} y --env-file no
+#     expande variables, así que llegaría tal cual y no sería una URL.
+# El curl reintenta mientras el servidor arranca: justo después del `docker run`
+# todavía no escucha.
+image-run: ## Arranca la imagen en segundo plano en el puerto IMAGE_PORT (por defecto 3334)
+	@docker run -d --name $(IMAGE_CONTAINER) \
+		-p $(IMAGE_PORT):3333 \
+		--add-host=host.docker.internal:host-gateway \
+		--env-file $(BACKEND)/.env \
+		-e HOST=0.0.0.0 \
+		-e DB_HOST=host.docker.internal \
+		-e APP_URL=http://localhost:$(IMAGE_PORT) \
+		$(IMAGE_TAG)
+	@curl -s --retry 10 --retry-connrefused --retry-delay 1 http://localhost:$(IMAGE_PORT)/
+	@echo ""
+
+image-stop: ## Para y borra el contenedor de la imagen
+	@docker rm -f $(IMAGE_CONTAINER)
 
 # ---------------------------------------------------------------------------
 # frontend: catálogo de componentes y comprobaciones de interfaz
