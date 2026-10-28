@@ -1,0 +1,9 @@
+# Se instalan y se compilan dentro de la imagen.
+node_modules
+build
+tmp
+
+# Ningún .env entra en el contexto de construcción: la configuración se pasa
+# al arrancar el contenedor (make image-run).
+**/.env
+**/.env.*
