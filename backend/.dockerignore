@@ -1,0 +1,20 @@
+# Se instalan y se generan dentro de la imagen
+node_modules
+build
+tmp
+
+# Ningún .env entra en la imagen: la configuración llega al arrancar el contenedor
+.env
+.env.*
+**/.env
+**/.env.*
+
+# Ruido local
+npm-debug.log
+*.log
+.DS_Store
+.idea
+.vscode
+.fleet
+Dockerfile
+.dockerignore
