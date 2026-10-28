@@ -1,0 +1,13 @@
+# Lo que no entra en el contexto de `docker build` (backend/).
+
+# Se instalan y se compilan dentro de la imagen. El node_modules del host trae
+# además binarios nativos de su sistema (win32 en Windows) que en Linux no sirven.
+node_modules
+build
+tmp
+
+# Ningún fichero de entorno: la configuración entra al arrancar el contenedor.
+.env
+.env.*
+**/.env
+**/.env.*

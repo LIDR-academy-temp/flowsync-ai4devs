@@ -14,7 +14,7 @@ BACKEND  := backend
 FRONTEND := frontend
 
 .DEFAULT_GOAL := help
-.PHONY: test-unit test-e2e ui test-ui test-web hooks help setup start install env db-up db-down migrate seed db-readonly copia-produccion test clean
+.PHONY: test-unit test-e2e ui test-ui test-web hooks help setup start install env db-up db-down migrate seed db-readonly copia-produccion test clean image image-run image-stop ci-lint
 
 # La ayuda se genera a partir de los comentarios `## ...` de cada target, para
 # que no haya un segundo listado que mantener a mano y que pueda divergir.
@@ -67,9 +67,17 @@ env:
 
 # `--wait` bloquea hasta que los dos healthchecks pasan: la imagen crea la base
 # la primera vez y no acepta conexiones mientras tanto.
+#
+# En CI (GitHub Actions define CI=true) no se levanta nada: la base de pruebas es
+# el contenedor de servicio del trabajo `test` de .github/workflows/ci.yml, que ya
+# ocupa el 54411, y db-test chocaría con él. Fuera de CI hace lo mismo que antes.
 db-up: ## Levanta las bases de desarrollo (54410) y de pruebas (54411)
-	@echo "🐘 Levantando PostgreSQL (db y db-test)..."
-	@docker compose up -d --wait db db-test
+	@if [ "$${CI:-}" = "true" ]; then \
+		echo "🐘 CI: la base de pruebas es el contenedor de servicio del trabajo; no se levanta compose."; \
+	else \
+		echo "🐘 Levantando PostgreSQL (db y db-test)..."; \
+		docker compose up -d --wait db db-test; \
+	fi
 
 # Sin `-v`: el volumen de desarrollo se conserva. La de pruebas es tmpfs y se vacía sola.
 db-down: ## Para las bases (la de desarrollo conserva sus datos)
@@ -78,9 +86,16 @@ db-down: ## Para las bases (la de desarrollo conserva sus datos)
 # La de pruebas es efímera: tras un `db-down` está vacía y hay que migrarla otra
 # vez, por eso `test` también pasa por aquí. NODE_ENV=test hace que Adonis cargue
 # .env.test y apunte a db-test.
+#
+# En CI no hay base de desarrollo ni backend/.env (ver db-up), así que ahí solo se
+# migra la de pruebas. Fuera de CI hace lo mismo que antes.
 migrate: db-up ## Migra las dos bases: desarrollo y pruebas
-	@echo "🗃️  Migrando la base de desarrollo..."
-	@cd $(BACKEND) && node ace migration:run
+	@if [ "$${CI:-}" = "true" ]; then \
+		echo "🗃️  CI: no hay base de desarrollo, solo se migra la de pruebas."; \
+	else \
+		echo "🗃️  Migrando la base de desarrollo..."; \
+		cd $(BACKEND) && node ace migration:run; \
+	fi
 	@echo "🗃️  Migrando la base de pruebas..."
 	@cd $(BACKEND) && NODE_ENV=test node ace migration:run
 
@@ -152,6 +167,81 @@ test-web: ## Corre el recorrido de navegador (Playwright; necesita la aplicació
 hooks: ## Activa los hooks de git del repo (pre-push: make test-ui); una vez por clon
 	@git config core.hooksPath .githooks
 	@echo "✅ Hooks activados (core.hooksPath = .githooks). Antes de cada push correrá: make test-ui"
+
+# ---------------------------------------------------------------------------
+# imagen del backend (backend/Dockerfile)
+# ---------------------------------------------------------------------------
+
+IMAGE_TAG       := flowsync-api:local
+IMAGE_CONTAINER := flowsync-api-local
+# 3334 y no 3333 para poder tenerla levantada a la vez que `make start`.
+# Otro puerto: make image-run IMAGE_PORT=<puerto>
+IMAGE_PORT      ?= 3334
+
+# El contexto es backend/ y no la raíz: así backups/ (datos personales reales) y
+# el resto del monorepo no llegan nunca al demonio de Docker. Lo que sobra dentro
+# de backend/ (node_modules, build, tmp, cualquier .env) lo quita backend/.dockerignore.
+image: ## Construye la imagen del backend (flowsync-api:local)
+	@echo "🐳 Construyendo $(IMAGE_TAG)..."
+	@docker build -t $(IMAGE_TAG) $(BACKEND)
+
+# backend/.env es el de desarrollo y se pisan tres valores que dentro del contenedor
+# no valen: HOST=localhost solo escucharía en el loopback del contenedor; localhost
+# como DB_HOST es el propio contenedor, no la máquina donde publica `db`; y Docker
+# no expande el ${HOST}:${PORT} de APP_URL, que llegaría literal y no pasaría la
+# validación de start/env.ts. Los -e ganan al --env-file.
+#
+# - Antes se borra un contenedor anterior con el mismo nombre, para poder relanzarlo
+#   sin un `make image-stop` de por medio.
+# - --add-host da host.docker.internal en Docker Engine de Linux, donde no existe
+#   por defecto; en Docker Desktop (Windows, macOS) ya existe y no cambia nada.
+# - MSYS_NO_PATHCONV=1 evita que Git Bash reescriba como rutas de Windows los
+#   argumentos con aspecto de ruta; en macOS y Linux se ignora.
+# - El curl reintenta mientras el servidor arranca: justo después de `docker run -d`
+#   aún no escucha y Docker Desktop corta la conexión en vez de rechazarla, de ahí
+#   --retry-all-errors y no solo --retry-connrefused.
+image-run: ## Arranca la imagen en segundo plano (puerto IMAGE_PORT, 3334 por defecto)
+	@docker rm -f $(IMAGE_CONTAINER) >/dev/null 2>&1 || true
+	@echo "🐳 Arrancando $(IMAGE_CONTAINER) en http://localhost:$(IMAGE_PORT)..."
+	@MSYS_NO_PATHCONV=1 docker run -d \
+		--name $(IMAGE_CONTAINER) \
+		-p $(IMAGE_PORT):3333 \
+		--add-host=host.docker.internal:host-gateway \
+		--env-file $(BACKEND)/.env \
+		-e HOST=0.0.0.0 \
+		-e DB_HOST=host.docker.internal \
+		-e APP_URL=http://localhost:$(IMAGE_PORT) \
+		$(IMAGE_TAG)
+	@curl -s --retry 30 --retry-delay 1 --retry-all-errors http://localhost:$(IMAGE_PORT)/ \
+		|| { echo "❌ No responde en http://localhost:$(IMAGE_PORT). Mira: docker logs $(IMAGE_CONTAINER)"; exit 1; }
+	@echo ""
+
+# `docker stop` manda SIGTERM, que bin/server.ts atiende para cerrar ordenadamente;
+# luego se borra para que el nombre quede libre.
+image-stop: ## Para y borra el contenedor de la imagen
+	@docker stop $(IMAGE_CONTAINER) >/dev/null
+	@docker rm $(IMAGE_CONTAINER) >/dev/null
+	@echo "🛑 $(IMAGE_CONTAINER) parado y borrado."
+
+# ---------------------------------------------------------------------------
+# pipeline (.github/workflows)
+# ---------------------------------------------------------------------------
+
+ACTIONLINT_IMAGE := rhysd/actionlint:1.7.12
+
+# actionlint desde su imagen oficial: no se instala nada, ni aquí ni en el runner,
+# y la versión es la misma en los dos sitios. Lee .github/workflows/ desde /repo.
+#
+# - La raíz se monta con `pwd -W` si existe: en Git Bash da C:/Users/..., que es lo
+#   que entiende Docker Desktop (/c/Users/... no). En macOS y Linux `pwd -W` no
+#   existe, falla sin salida y se usa `pwd`.
+# - MSYS_NO_PATHCONV=1 impide que Git Bash convierta /repo, en -v y en -w, en una
+#   ruta de Windows; en macOS y Linux se ignora.
+ci-lint: ## Valida los workflows de .github/workflows/ con actionlint (en Docker)
+	@MSYS_NO_PATHCONV=1 docker run --rm \
+		-v "$$(pwd -W 2>/dev/null || pwd):/repo" \
+		-w /repo \
+		$(ACTIONLINT_IMAGE) -color
 
 # ---------------------------------------------------------------------------
 # start
