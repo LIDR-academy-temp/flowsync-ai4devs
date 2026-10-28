@@ -26,6 +26,7 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  --color-progress: var(--progress);
 }
 
 :root {
@@ -48,6 +49,7 @@
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
   --ring: oklch(0.708 0 0);
+  --progress: #1d4ed8;
 }
 
 .dark {

@@ -146,6 +146,14 @@ El typecheck vive dentro de `npm run build`; el lint es **oxlint** (`.oxlintrc.j
 
 Stack: **Tailwind v4** (plugin de Vite, sin `tailwind.config.js`; los tokens viven en `src/index.css`), **shadcn/ui** (`components.json`, componentes generados en `src/components/ui/` — se traen con `npx shadcn@latest add <componente>` y no se editan a mano) y **react-router**. El alias `@/*` → `src/*` está declarado a la vez en `tsconfig.app.json` (sin `baseUrl`, deprecado en TS 6) y en `vite.config.ts`.
 
+De dónde sale una pieza de interfaz nueva, en este orden:
+
+1. Primero se busca en `frontend/src/components/ui/`; si ya está, se usa esa.
+2. Si no está y shadcn la tiene, se trae con `npx shadcn@latest add <componente>` (desde `frontend/`).
+3. Solo si no existe en ninguno de los dos se escribe una propia, y siempre con los valores con nombre de `frontend/src/index.css` (`bg-primary`, `text-muted-foreground`, `border-border`...), nunca con colores a pelo (hexadecimales, `rgb()`/`hsl()`/`oklch()`, clases de paleta cruda como `bg-blue-600` o `text-white`).
+
+**Esta regla no la comprueba ningún script**: nada verifica que se haya buscado antes en `components/ui/` o en shadcn. Lo único automático es el hook `PostToolUse` `.claude/hooks/colores-con-nombre.sh`, que **avisa sin bloquear** cuando un Write/Edit en `frontend/src/` (salvo `index.css`, que es donde el valor literal sí se escribe) mete un color a pelo, y dice qué valor y en qué archivo. Solo ve el texto nuevo de esa escritura, no lo que entra por Bash; cuando avisa, se sustituye el valor por el que tiene nombre.
+
 Organización de `src/`:
 
 - `lib/api.ts` — único punto de contacto con el backend: envuelve `fetch`, desenvuelve el `{ data }` del serializer, adjunta el `Authorization: Bearer` y traduce los errores de VineJS/auth a `ApiError` con `message` ya en castellano y `fieldErrors` por campo. Toda llamada nueva a la API se añade aquí, no en los componentes.
