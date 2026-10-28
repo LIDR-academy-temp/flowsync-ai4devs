@@ -146,6 +146,14 @@ El typecheck vive dentro de `npm run build`; el lint es **oxlint** (`.oxlintrc.j
 
 Stack: **Tailwind v4** (plugin de Vite, sin `tailwind.config.js`; los tokens viven en `src/index.css`), **shadcn/ui** (`components.json`, componentes generados en `src/components/ui/` — se traen con `npx shadcn@latest add <componente>` y no se editan a mano) y **react-router**. El alias `@/*` → `src/*` está declarado a la vez en `tsconfig.app.json` (sin `baseUrl`, deprecado en TS 6) y en `vite.config.ts`.
 
+De dónde sale una pieza de interfaz nueva, por este orden:
+
+1. **shadcn/ui primero.** Si el componente existe en el catálogo (botón, diálogo, select, checkbox, tabla, toast…), se trae con `npx shadcn@latest add <componente>` y aterriza en `src/components/ui/`. No se escribe a mano ni se copia de otro proyecto.
+2. **Composición después.** Si no hay pieza de shadcn que sirva, se compone en `src/components/` con las de `ui/` y utilidades de Tailwind, sin tocar los ficheros de `ui/`.
+3. **Pieza propia, solo si lo anterior no alcanza**, y se dice en la descripción del cambio por qué.
+
+Los colores salen de los tokens de `src/index.css` (`bg-primary`, `text-muted-foreground`, `border-border`, `bg-destructive`…), nunca de un hexadecimal ni de una clase de paleta cruda (`bg-blue-600`). Si falta un color, se define como token en `index.css` y se usa por su nombre. El hook `.claude/hooks/sin-color-a-pelo.sh` avisa (no bloquea) cuando se escribe uno a pelo en `frontend/src/`; `index.css` queda fuera porque es donde el valor literal sí se escribe. Un aviso se atiende, no se ignora.
+
 Organización de `src/`:
 
 - `lib/api.ts` — único punto de contacto con el backend: envuelve `fetch`, desenvuelve el `{ data }` del serializer, adjunta el `Authorization: Bearer` y traduce los errores de VineJS/auth a `ApiError` con `message` ya en castellano y `fieldErrors` por campo. Toda llamada nueva a la API se añade aquí, no en los componentes.
