@@ -14,7 +14,7 @@ BACKEND  := backend
 FRONTEND := frontend
 
 .DEFAULT_GOAL := help
-.PHONY: test-unit test-e2e ui test-ui test-web hooks help setup start install env db-up db-down migrate seed db-readonly copia-produccion test clean
+.PHONY: test-unit test-e2e ui test-ui test-web hooks help setup start install env db-up db-down migrate seed db-readonly copia-produccion test image image-run image-stop ci-lint clean
 
 # La ayuda se genera a partir de los comentarios `## ...` de cada target, para
 # que no haya un segundo listado que mantener a mano y que pueda divergir.
@@ -123,6 +123,57 @@ test-unit: migrate ## Solo la suite unitaria (sin servidor ni base de datos)
 
 test-e2e: migrate ## Solo la suite funcional: peticiones HTTP reales contra la base de pruebas
 	@cd $(BACKEND) && node ace test functional
+
+# ---------------------------------------------------------------------------
+# imagen de la API (backend/Dockerfile)
+# ---------------------------------------------------------------------------
+
+IMAGE_TAG       := flowsync-api:local
+IMAGE_CONTAINER := flowsync-api-local
+IMAGE_PORT      ?= 3334
+
+image: ## Construye la imagen de la API (flowsync-api:local)
+	@echo "📦 Construyendo $(IMAGE_TAG)..."
+	@docker build -t $(IMAGE_TAG) $(BACKEND)
+
+# Dentro del contenedor `localhost` es el propio contenedor, de ahí HOST y DB_HOST.
+# APP_URL se fuerza porque Docker no expande el `${HOST}:${PORT}` que usa backend/.env.
+# Los -e van después de --env-file y le ganan. Docker acepta la conexión en el puerto
+# publicado antes de que el servidor escuche y luego la corta (curl sale con 56), y
+# `curl --retry` no reintenta eso. Por eso se sondea con un bucle, hasta 30 s, y se
+# deja de esperar si el contenedor ya se ha parado. Si no contesta, el motivo está
+# en `docker logs`.
+image-run: ## Arranca la imagen en segundo plano en IMAGE_PORT (3334) y la consulta
+	@if [ ! -f $(BACKEND)/.env ]; then \
+		echo "❌ Falta $(BACKEND)/.env. Ejecuta primero: make env"; exit 1; \
+	fi
+	@docker run -d --name $(IMAGE_CONTAINER) \
+		-p $(IMAGE_PORT):3333 \
+		--env-file $(BACKEND)/.env \
+		-e HOST=0.0.0.0 \
+		-e DB_HOST=host.docker.internal \
+		-e APP_URL=http://localhost:$(IMAGE_PORT) \
+		$(IMAGE_TAG) >/dev/null
+	@for i in $$(seq 1 30); do \
+		if curl -s --max-time 2 http://localhost:$(IMAGE_PORT)/; then echo ""; exit 0; fi; \
+		if [ "$$(docker inspect -f '{{.State.Running}}' $(IMAGE_CONTAINER))" != "true" ]; then break; fi; \
+		sleep 1; \
+	done; \
+	echo "❌ Sin respuesta en el puerto $(IMAGE_PORT). Mira: docker logs $(IMAGE_CONTAINER)"; \
+	exit 1
+
+image-stop: ## Para y borra el contenedor de la imagen
+	@docker rm -f $(IMAGE_CONTAINER)
+
+# ---------------------------------------------------------------------------
+# pipeline (.github/workflows/)
+# ---------------------------------------------------------------------------
+
+# actionlint en su imagen oficial: no hay nada que instalar. Se monta la raíz del
+# repo (y no solo .github/) para que encuentre el proyecto, y sin argumentos valida
+# todos los workflows. Sale en silencio con 0 si todo está bien.
+ci-lint: ## Valida los workflows de .github/workflows/ con actionlint (en Docker)
+	@docker run --rm -v "$(CURDIR):/repo" --workdir /repo rhysd/actionlint:1.7.12 -color
 
 # ---------------------------------------------------------------------------
 # frontend: catálogo de componentes y comprobaciones de interfaz

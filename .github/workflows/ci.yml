@@ -1,0 +1,250 @@
+name: CI
+
+# Cinco trabajos y cada uno responde a una pregunta. Los tres primeros corren en
+# paralelo y sin depender entre sí: que la suite falle no impide saber si la
+# imagen se construye ni si los workflows son válidos.
+#
+#   test            ¿la suite del backend pasa en una máquina limpia?
+#   image           ¿el artefacto se puede fabricar desde cero?
+#   lint-workflows  ¿los propios archivos del pipeline son válidos?
+#   infra-plan      ¿qué cambiaría en la infraestructura si esto se fusiona?
+#   infra-apply     aplicar ese plan, solo cuando el pull request se fusiona
+#
+# Los dos últimos hablan con Railway y necesitan el secreto RAILWAY_TOKEN, que se
+# da de alta en el repositorio y no aparece en ningún fichero.
+on:
+  pull_request:
+    # `closed` no es para probar nada: es el evento en el que `infra-apply` se
+    # entera de que el PR se fusionó. Los demás trabajos lo descartan con su `if`.
+    types: [opened, synchronize, reopened, closed]
+  push:
+    branches: [main]
+
+# Sin permisos por defecto: cada trabajo declara los suyos, que son solo los que
+# usa. Nunca `write-all`.
+permissions: {}
+
+# Si llegan dos pushes seguidos a la misma referencia, solo interesa el último.
+# El cierre de un PR va en su propio grupo y no se cancela nunca: interrumpir un
+# `infra-apply` a medias dejaría la infraestructura a medio aplicar.
+concurrency:
+  group: ci-${{ github.ref }}-${{ github.event.action == 'closed' && 'cierre' || 'cambio' }}
+  cancel-in-progress: ${{ github.event.action != 'closed' }}
+
+jobs:
+  test:
+    name: ¿La suite del backend pasa?
+    if: github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    env:
+      # `start/env.ts` valida estas variables al arrancar y `backend/.env.test`
+      # solo trae SESSION_DRIVER y las DB_*, así que el resto entra aquí, como en
+      # openapi.yml. Ninguna es un secreto: `APP_KEY` existe solo para que la
+      # validación pase. NODE_ENV=test es lo que hace que AdonisJS cargue
+      # `.env.test` y apunte a la base de pruebas, y también lo que hace que el
+      # `node ace migration:run` de `make migrate`, que no lo fija, migre esa base
+      # y no la de desarrollo.
+      NODE_ENV: test
+      PORT: 3333
+      HOST: 127.0.0.1
+      LOG_LEVEL: silent
+      APP_KEY: clave-de-ci-sin-valor-secreto
+      APP_URL: http://127.0.0.1:3333
+      SESSION_DRIVER: memory
+    services:
+      # La misma imagen, usuario, contraseña y base que `db-test` en compose.yaml,
+      # y el 54411 que espera `backend/.env.test`. Son los valores de desarrollo,
+      # ya públicos en el repositorio. Los trabajos esperan a que el healthcheck
+      # pase antes de arrancar los pasos. Se pregunta por TCP (`-h 127.0.0.1`) por
+      # la misma razón que en compose.yaml: en el primer arranque la imagen
+      # levanta un servidor temporal que solo escucha en el socket Unix.
+      db-test:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_USER: flowsync
+          POSTGRES_PASSWORD: flowsync
+          POSTGRES_DB: flowsync_test
+        ports:
+          - 54411:5432
+        options: >-
+          --health-cmd "pg_isready -h 127.0.0.1 -U flowsync -d flowsync_test"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 30
+          --health-start-period 5s
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Instalar dependencias del backend
+        run: npm ci
+        working-directory: backend
+
+      # Es `make test`, el mismo comando que se corre en local, con una sola
+      # diferencia: `-o db-up` le dice a make que no ejecute ese objetivo. `db-up`
+      # levanta `db` y `db-test` con `docker compose`, y el 54411 ya lo ocupa el
+      # servicio de arriba, así que compose fallaría con «port is already
+      # allocated». El resto de la receta (migrar la base y `npm test`) corre tal
+      # cual. `shell: bash` activa `pipefail`: sin él, el `tee` taparía el código
+      # de salida de la suite y un test roto saldría en verde.
+      - name: Suite del backend
+        shell: bash
+        run: make -o db-up test 2>&1 | tee "$RUNNER_TEMP/test.log"
+
+      # Corre aunque la suite falle: es cuando más interesa ver el recuento. La
+      # línea sale del resumen que imprime Japa («Tests  N passed (N)»), sin
+      # colores, y va al resumen de la ejecución, no a un `echo` del registro.
+      - name: Publicar el recuento de tests
+        if: ${{ !cancelled() }}
+        shell: bash
+        run: |
+          {
+            echo "### Suite del backend"
+            echo
+            if recuento=$(sed 's/\x1b\[[0-9;]*m//g' "$RUNNER_TEMP/test.log" | grep -E '^ *Tests ' | tail -n 1); then
+              echo '```'
+              echo "$recuento"
+              echo '```'
+            else
+              echo "No se encontró la línea de recuento en la salida: la suite no llegó a terminar."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  image:
+    name: ¿La imagen se construye?
+    if: github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # LÍMITE DE ESTE TRABAJO: afirma que la imagen se CONSTRUYE desde cero, no
+      # que ARRANQUE. No se lanza el contenedor: arrancarlo exige las variables de
+      # entorno y una base de datos, y eso es otra pregunta que este trabajo no
+      # contesta. Una imagen puede construirse sin errores y morir al arrancar.
+      - name: Construir la imagen
+        run: make image
+
+  lint-workflows:
+    name: ¿Los workflows son válidos?
+    if: github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # actionlint en su imagen oficial (ver `ci-lint` en el Makefile): no hay
+      # nada que instalar y es el mismo comando que se corre en local.
+      - name: Validar los workflows con actionlint
+        run: make ci-lint
+
+  infra-plan:
+    name: ¿Qué cambiaría en la infraestructura?
+    # Solo PR del propio repositorio: un fork no recibe los secretos y el trabajo
+    # fallaría sin explicar por qué. El filtro por `.railway/**` no se puede poner
+    # a nivel de workflow sin dejar sin ejecutar a los demás trabajos, así que se
+    # hace en el primer paso, y los siguientes se saltan si el PR no toca esa ruta.
+    if: >-
+      github.event_name == 'pull_request'
+      && github.event.action != 'closed'
+      && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # `pull-requests: write` para publicar el plan como comentario del PR (y
+    # leer su lista de ficheros); `contents: read` para el checkout. Nada más.
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: ¿El PR toca .railway/?
+        id: cambios
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          ficheros=$(gh api "repos/$REPO/pulls/$PR/files" --paginate --jq '.[].filename')
+          if grep -q '^\.railway/' <<< "$ficheros"; then
+            echo "railway=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "railway=false" >> "$GITHUB_OUTPUT"
+            echo "El PR no toca .railway/: no hay nada que planificar." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: steps.cambios.outputs.railway == 'true'
+        with:
+          persist-credentials: false
+
+      - uses: railwayapp/config@9e17d413dbe219f19d62538d9c06b5dbb5e9abf8 # v1.2.0
+        if: steps.cambios.outputs.railway == 'true'
+        with:
+          command: plan
+          railway-token: ${{ secrets.RAILWAY_TOKEN }}
+
+  infra-apply:
+    name: Aplicar el plan de infraestructura
+    # Solo cuando el PR se fusiona (no cuando se cierra sin fusionar) y es del
+    # propio repositorio. No vuelve a planificar: aplica el plan que se revisó en
+    # el PR, y si el entorno o `.railway/` cambiaron desde entonces, falla.
+    if: >-
+      github.event_name == 'pull_request'
+      && github.event.action == 'closed'
+      && github.event.pull_request.merged == true
+      && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # `actions: read` para descargar el plan guardado por `infra-plan`;
+    # `pull-requests: read` para leer la lista de ficheros del PR. No escribe
+    # en el repositorio ni en el PR.
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: read
+    steps:
+      # Un PR que no toca `.railway/` no tiene plan guardado y el apply fallaría
+      # buscándolo, así que se comprueba igual que en `infra-plan`.
+      - name: ¿El PR toca .railway/?
+        id: cambios
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          ficheros=$(gh api "repos/$REPO/pulls/$PR/files" --paginate --jq '.[].filename')
+          if grep -q '^\.railway/' <<< "$ficheros"; then
+            echo "railway=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "railway=false" >> "$GITHUB_OUTPUT"
+            echo "El PR no tocaba .railway/: no hay nada que aplicar." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: steps.cambios.outputs.railway == 'true'
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
+          persist-credentials: false
+
+      - uses: railwayapp/config@9e17d413dbe219f19d62538d9c06b5dbb5e9abf8 # v1.2.0
+        if: steps.cambios.outputs.railway == 'true'
+        with:
+          command: apply
+          railway-token: ${{ secrets.RAILWAY_TOKEN }}
