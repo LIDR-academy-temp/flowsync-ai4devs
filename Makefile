@@ -169,6 +169,9 @@ image: ## Construye la imagen de la API (flowsync-api:local)
 # escuchar en todas las interfaces para que el puerto publicado llegue, y APP_URL
 # se fuerza porque Docker no expande el ${HOST}:${PORT} que trae backend/.env.
 # Los -e van detrás de --env-file y lo pisan.
+# El curl reintenta ante cualquier error, no solo ante un rechazo: mientras Node
+# arranca, el proxy de Docker ya acepta en el puerto publicado y corta la conexión
+# (curl sale con 56), y --retry-connrefused no cubre ese caso.
 image-run: ## Arranca la imagen en segundo plano en IMAGE_PORT (3334) contra la base de desarrollo
 	@docker run -d --name $(IMAGE_CONTAINER) \
 		--add-host=host.docker.internal:host-gateway \
@@ -178,7 +181,7 @@ image-run: ## Arranca la imagen en segundo plano en IMAGE_PORT (3334) contra la 
 		-e DB_HOST=host.docker.internal \
 		-e APP_URL=http://localhost:$(IMAGE_PORT) \
 		$(IMAGE)
-	@curl -s --retry 10 --retry-connrefused --retry-delay 1 http://localhost:$(IMAGE_PORT)/
+	@curl -s --retry 10 --retry-all-errors --retry-delay 1 http://localhost:$(IMAGE_PORT)/
 	@echo ""
 
 image-stop: ## Para y borra el contenedor de la imagen
