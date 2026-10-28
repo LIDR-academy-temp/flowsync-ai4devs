@@ -14,7 +14,7 @@ BACKEND  := backend
 FRONTEND := frontend
 
 .DEFAULT_GOAL := help
-.PHONY: test-unit test-e2e ui test-ui test-web hooks help setup start install env db-up db-down migrate seed db-readonly copia-produccion test image image-run image-stop clean
+.PHONY: test-unit test-e2e ui test-ui test-web hooks help setup start install env db-up db-down migrate seed db-readonly copia-produccion db-test-up migrate-test test image image-run image-stop ci-lint clean
 
 # La ayuda se genera a partir de los comentarios `## ...` de cada target, para
 # que no haya un segundo listado que mantener a mano y que pueda divergir.
@@ -115,13 +115,28 @@ COPIA ?= backups/produccion-2026-10-02.dump
 copia-produccion: migrate ## Carga la copia de producción SEUDONIMIZADA en desarrollo (sustituye sus datos)
 	@bash $(BACKEND)/database/copia-produccion.sh "$(COPIA)"
 
-test: migrate ## Corre los tests del backend contra la base de pruebas
+# Los tests solo necesitan la base de pruebas. En CI (GitHub Actions pone CI=true)
+# ya la levanta el contenedor de servicio del trabajo en el mismo 54411, y un
+# segundo contenedor en ese puerto chocaría con él: allí no se toca compose.
+db-test-up:
+	@if [ "$$CI" = "true" ]; then \
+		echo "🐘 CI: la base de pruebas es el contenedor de servicio del trabajo (54411)."; \
+	else \
+		echo "🐘 Levantando PostgreSQL de pruebas (db-test)..."; \
+		docker compose up -d --wait db-test; \
+	fi
+
+migrate-test: db-test-up ## Migra solo la base de pruebas
+	@echo "🗃️  Migrando la base de pruebas..."
+	@cd $(BACKEND) && NODE_ENV=test node ace migration:run
+
+test: migrate-test ## Corre los tests del backend contra la base de pruebas
 	@cd $(BACKEND) && npm test
 
-test-unit: migrate ## Solo la suite unitaria (sin servidor ni base de datos)
+test-unit: migrate-test ## Solo la suite unitaria (sin servidor ni base de datos)
 	@cd $(BACKEND) && node ace test unit
 
-test-e2e: migrate ## Solo la suite funcional: peticiones HTTP reales contra la base de pruebas
+test-e2e: migrate-test ## Solo la suite funcional: peticiones HTTP reales contra la base de pruebas
 	@cd $(BACKEND) && node ace test functional
 
 # ---------------------------------------------------------------------------
@@ -183,6 +198,15 @@ image-run: ## Arranca la imagen en segundo plano (puerto IMAGE_PORT, por defecto
 image-stop: ## Para y borra el contenedor de la API
 	@docker stop $(IMAGE_NAME) >/dev/null && docker rm $(IMAGE_NAME) >/dev/null
 	@echo "🛑 $(IMAGE_NAME) parado y borrado"
+
+# ---------------------------------------------------------------------------
+# pipeline (.github/workflows/)
+# ---------------------------------------------------------------------------
+
+# Sin instalar nada: la imagen oficial de actionlint, con el repo montado en solo
+# lectura. Sin argumentos, actionlint busca .github/workflows/ desde /repo.
+ci-lint: ## Valida los workflows de .github/workflows/ con actionlint
+	@docker run --rm -v "$(CURDIR):/repo:ro" -w /repo rhysd/actionlint:1.7.12 -color
 
 # ---------------------------------------------------------------------------
 # start
