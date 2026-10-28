@@ -1,37 +1,3 @@
-# Prompts
-
-Aquí van **todos los prompts que lanzaste** para hacer el ejercicio, en el orden en que los
-lanzaste, con el modelo y la herramienta de cada uno.
-
-Esto no es papeleo. Lo que se revisa es **cómo pediste las cosas**, no solo lo que salió: un
-resultado flojo con un prompt bueno y un resultado flojo con un prompt vago necesitan feedback
-distinto, y sin este archivo no se distinguen.
-
-## Cómo rellenarlo
-
-- Un apartado `## Prompt N` por cada prompt.
-- **Pega el prompt tal cual lo lanzaste**, dentro del bloque de código, aunque ocupe diez líneas
-  y aunque tenga faltas. No lo reescribas para que quede bien: el que arreglaste mentalmente
-  después no es el que lanzaste.
-- Incluye también los que **no funcionaron**. Suelen ser los más útiles de leer.
-- `Modelo` y `Herramienta` en todos. Si cambiaste de una a otra a mitad, se nota aquí.
-
----
-
-## Prompt 0 — Preparar los prompts a partir del enunciado
-
-**Modelo:** Opus 5.5
-**Herramienta:** Claude Code
-
-```
-con respecto al entorno local, lo tengo habilitado (docker, node, make, etc). Ya tengo la rama de trabajo creada, se llama pipeline-marco-bello. Necesito que leas el documento, y que primero me indiques los prompts que deberia lanzar, la idea es que yo tome esos prompt y luego te los pase para su ejecución, debes guardar cada instrucción en el archivo prompts.md
-```
-
-**Qué salió:** el agente leyó el .docx del enunciado y redactó en este archivo los prompts 1 a 6;
-los de corrección (2 y 4) quedaron como plantilla para rellenar con el error real.
-
----
-
 ## Prompt 1 — Parte A: la imagen
 
 **Modelo:** Opus 5.5
@@ -204,45 +170,5 @@ No hizo falta: `make ci-lint` salió en silencio con código 0 a la primera.
 
 ---
 
-## Prompt 5 — Parte C: HALLAZGOS.md
 
-**Modelo:** Opus 5.5
-**Herramienta:** Claude Code
 
-```
-Escribe HALLAZGOS.md en la raíz con tres apartados, usando SOLO los datos que te pego (no los
-reconstruyas ni vuelvas a ejecutar nada):
-
-1. La imagen: pesa <tamaño de docker images>. Qué tuvo que declarar el Dockerfile que mi máquina daba
-   por hecho (dependencias del sistema, versión, pasos de construcción). Revisa el Dockerfile y dímelo.
-2. Lo que reclamó el contenedor al arrancar sin variables. Mensaje literal:
-   <pegar el mensaje entero de docker run --rm flowsync-api:local>
-   Cuántas son, y clasifica cada una en secreto (su conocimiento da acceso) o configuración (no pasaría
-   nada si saliera en un registro público). Compáralas con las de backend/.env:
-   <pegar los NOMBRES de las variables de backend/.env, sin valores>
-3. Qué NO comprueba el pipeline: una lista corta y concreta de lo que ninguno de los cinco trabajos de
-   ci.yml afirma. Nada genérico tipo «faltan cosas».
-
-Añade también lo que pasó en las partes A y B: correcciones que tuve que pedir (<sí/no y cuáles>) y si
-make ci-lint salió limpio a la primera. Commitea en esta rama.
-```
-
-**Qué salió:**
-
----
-
-## Prompt 6 — Entrega
-
-**Modelo:** Opus 5.5
-**Herramienta:** Claude Code
-
-```
-Comprueba que prompts.md y HALLAZGOS.md están commiteados en pipeline-marco-bello y que no hay ningún
-.env ni secreto en los commits de la rama. Si algún commit quedó en otra rama, tráelo con git merge.
-Empuja la rama a mi fork (git push -u origin pipeline-marco-bello) y abre el pull request desde mi fork
-hacia el repositorio del curso, el remoto upstream (LIDR-academy-temp/flowsync-ai4devs; comprueba que
-el repo base es ese y no mi fork), con una
-descripción completa del cambio.
-```
-
-**Qué salió:**
