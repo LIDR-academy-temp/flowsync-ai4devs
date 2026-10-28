@@ -14,7 +14,7 @@ BACKEND  := backend
 FRONTEND := frontend
 
 .DEFAULT_GOAL := help
-.PHONY: test-unit test-e2e ui test-ui test-web hooks help setup start install env db-up db-down migrate seed db-readonly copia-produccion test clean
+.PHONY: test-unit test-e2e ui test-ui test-web hooks help setup start install env db-up db-down migrate seed db-readonly copia-produccion test image image-run image-stop clean
 
 # La ayuda se genera a partir de los comentarios `## ...` de cada target, para
 # que no haya un segundo listado que mantener a mano y que pueda divergir.
@@ -152,6 +152,39 @@ test-web: ## Corre el recorrido de navegador (Playwright; necesita la aplicació
 hooks: ## Activa los hooks de git del repo (pre-push: make test-ui); una vez por clon
 	@git config core.hooksPath .githooks
 	@echo "✅ Hooks activados (core.hooksPath = .githooks). Antes de cada push correrá: make test-ui"
+
+# ---------------------------------------------------------------------------
+# imagen de la API (backend/Dockerfile)
+# ---------------------------------------------------------------------------
+
+IMAGE      := flowsync-api:local
+CONTAINER  := flowsync-api-local
+IMAGE_PORT ?= 3334
+
+image: ## Construye la imagen de la API (flowsync-api:local)
+	@docker build -t $(IMAGE) $(BACKEND)
+
+# backend/.env entra como fichero de entorno y se pisan tres valores:
+#   - HOST=0.0.0.0: con localhost el servidor solo escucharía dentro del contenedor
+#     y el puerto publicado no llegaría a él.
+#   - DB_HOST=host.docker.internal: dentro del contenedor, localhost es el propio
+#     contenedor; la base de desarrollo está en la máquina anfitriona.
+#   - APP_URL: Docker no expande el `http://${HOST}:${PORT}` del fichero, lo pasaría
+#     literal y el schema de start/env.ts lo rechazaría por no ser una URL.
+# El curl reintenta porque el servidor tarda un momento en escuchar tras el `run -d`.
+image-run: ## Arranca la imagen en segundo plano en el puerto IMAGE_PORT (3334)
+	@docker run -d --name $(CONTAINER) \
+		-p $(IMAGE_PORT):3333 \
+		--env-file $(BACKEND)/.env \
+		-e HOST=0.0.0.0 \
+		-e DB_HOST=host.docker.internal \
+		-e APP_URL=http://localhost:$(IMAGE_PORT) \
+		$(IMAGE)
+	@curl -s --retry 10 --retry-delay 1 --retry-all-errors http://localhost:$(IMAGE_PORT)/
+	@echo ""
+
+image-stop: ## Para y borra el contenedor de la imagen
+	@docker rm -f $(CONTAINER)
 
 # ---------------------------------------------------------------------------
 # start
