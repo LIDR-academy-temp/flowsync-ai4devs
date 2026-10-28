@@ -14,7 +14,7 @@ BACKEND  := backend
 FRONTEND := frontend
 
 .DEFAULT_GOAL := help
-.PHONY: image image-run image-stop test-unit test-e2e ui test-ui test-web hooks help setup start install env db-up db-down migrate seed db-readonly copia-produccion test clean
+.PHONY: image image-run image-stop ci-lint test-unit test-e2e ui test-ui test-web hooks help setup start install env db-up db-down migrate seed db-readonly copia-produccion test clean
 
 # La ayuda se genera a partir de los comentarios `## ...` de cada target, para
 # que no haya un segundo listado que mantener a mano y que pueda divergir.
@@ -67,9 +67,18 @@ env:
 
 # `--wait` bloquea hasta que los dos healthchecks pasan: la imagen crea la base
 # la primera vez y no acepta conexiones mientras tanto.
+#
+# En CI (GitHub define CI=true en todos los runners) no se levanta nada: la base de
+# pruebas la pone el workflow como contenedor de servicio en el mismo 54411, y
+# compose chocaría con ella por el puerto. Así `make test` es el mismo comando en
+# local y en .github/workflows/ci.yml.
 db-up: ## Levanta las bases de desarrollo (54410) y de pruebas (54411)
-	@echo "🐘 Levantando PostgreSQL (db y db-test)..."
-	@docker compose up -d --wait db db-test
+	@if [ -n "$$CI" ]; then \
+		echo "🐘 CI: las bases las pone el workflow; no se levanta compose."; \
+	else \
+		echo "🐘 Levantando PostgreSQL (db y db-test)..."; \
+		docker compose up -d --wait db db-test; \
+	fi
 
 # Sin `-v`: el volumen de desarrollo se conserva. La de pruebas es tmpfs y se vacía sola.
 db-down: ## Para las bases (la de desarrollo conserva sus datos)
@@ -186,6 +195,15 @@ image-run: ## Arranca la imagen en segundo plano en IMAGE_PORT (3334) contra la 
 
 image-stop: ## Para y borra el contenedor de la imagen
 	@docker stop $(IMAGE_CONTAINER) >/dev/null && docker rm $(IMAGE_CONTAINER) >/dev/null
+
+# ---------------------------------------------------------------------------
+# pipeline (.github/workflows/)
+# ---------------------------------------------------------------------------
+
+# actionlint desde su imagen oficial: no se instala nada. Se monta la raíz del repo
+# y actionlint encuentra solo .github/workflows/. En silencio y con 0 si todo está bien.
+ci-lint: ## Valida los workflows de .github/workflows/ con actionlint (Docker)
+	@docker run --rm -v "$(CURDIR):/repo" -w /repo rhysd/actionlint:1.7.12 -color
 
 # ---------------------------------------------------------------------------
 # start
