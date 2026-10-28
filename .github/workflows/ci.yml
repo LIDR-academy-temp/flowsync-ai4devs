@@ -1,0 +1,201 @@
+name: CI
+
+# Cada cambio propuesto, su fusión (el PR pasa a `closed`) y cada push a la rama
+# principal. Sin filtros de ruta a propósito: test, image y lint-workflows deben
+# correr siempre; los dos trabajos de infraestructura miran las rutas por dentro.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+  push:
+    branches: [main]
+
+# Nada por defecto: cada trabajo declara abajo lo único que necesita.
+permissions: {}
+
+# Si llega otro push a la misma rama, el anterior ya no interesa. La excepción es
+# el cierre de un PR: ahí corre infra-apply y cancelarlo a medias dejaría la
+# infraestructura a medio aplicar.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event.action != 'closed' }}
+
+jobs:
+  # ¿La suite del backend pasa en una máquina limpia?
+  # No comprueba: la imagen de Docker, el frontend, ni que el código funcione
+  # contra la base de desarrollo o de producción; solo la suite contra un
+  # PostgreSQL vacío.
+  test:
+    name: Tests del backend
+    if: github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    services:
+      db-test:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_USER: flowsync
+          POSTGRES_PASSWORD: flowsync
+          POSTGRES_DB: flowsync_test
+        ports:
+          - 54411:5432
+        # Por TCP, como en compose.yaml: el servidor temporal del primer arranque
+        # solo escucha en el socket y diría «sano» antes de tiempo.
+        options: >-
+          --health-cmd "pg_isready -h 127.0.0.1 -U flowsync -d flowsync_test"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 30
+          --health-start-period 5s
+    env:
+      # Lo que exige `start/env.ts` y no está en `backend/.env.test` (que solo trae
+      # la sesión y la base de pruebas). Ninguna es un secreto: `APP_KEY` existe
+      # solo para que la validación pase.
+      NODE_ENV: test
+      PORT: 3333
+      HOST: 127.0.0.1
+      LOG_LEVEL: silent
+      APP_KEY: clave-de-ci-sin-valor-secreto
+      APP_URL: http://127.0.0.1:3333
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Instalar dependencias del backend
+        working-directory: backend
+        run: npm ci
+
+      - name: Correr la suite
+        run: make test 2>&1 | tee test.log
+
+      # Las líneas de resumen del reporter de Japa («Tests  N passed (N)»).
+      - name: Publicar el recuento de tests
+        if: always()
+        run: |
+          {
+            echo '### Tests del backend'
+            echo '```'
+            sed 's/\x1b\[[0-9;]*m//g' test.log | grep -E '^\s*(Tests|Time)\b' || echo 'Sin resumen: la suite no llegó a terminar.'
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # ¿La imagen se puede fabricar desde cero?
+  # No comprueba que arranque: el contenedor no se levanta, así que no se ve si la
+  # validación de variables de entorno, la conexión a la base o el puerto fallan.
+  image:
+    name: Imagen de Docker
+    if: github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Construir la imagen
+        run: make image
+
+  # ¿Los archivos del pipeline son válidos?
+  # No comprueba que hagan lo que quieren: actionlint valida sintaxis, expresiones
+  # y tipos, no la lógica de cada trabajo ni que los secretos existan.
+  lint-workflows:
+    name: Validar los workflows
+    if: github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: actionlint
+        run: make ci-lint
+
+  # ¿Qué cambiaría en la infraestructura?
+  # No aplica nada: solo calcula y comenta el plan. Tampoco corre en forks (no
+  # reciben secretos) ni en PRs que no tocan .railway/.
+  infra-plan:
+    name: Plan de infraestructura
+    if: >-
+      github.event_name == 'pull_request'
+      && github.event.action != 'closed'
+      && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      # Comentar el plan en el PR, y el token OIDC con el que Railway lo publica
+      # con su propia identidad.
+      pull-requests: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+
+      - name: ¿Toca .railway/?
+        id: rutas
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          if git diff --name-only "$BASE...$HEAD" | grep -q '^\.railway/'; then
+            echo 'toca=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'toca=false' >> "$GITHUB_OUTPUT"
+            echo 'El PR no toca .railway/: sin plan.'
+          fi
+
+      - name: Plan de Railway
+        if: steps.rutas.outputs.toca == 'true'
+        uses: railwayapp/config@9e17d413dbe219f19d62538d9c06b5dbb5e9abf8 # v1.2.0
+        with:
+          command: plan
+          railway-token: ${{ secrets.RAILWAY_TOKEN }}
+
+  # ¿Qué cambiaría en la infraestructura?, ya con el PR fusionado: aplica el plan
+  # que se revisó en el PR, sin recalcularlo. No comprueba nada de la aplicación.
+  infra-apply:
+    name: Aplicar la infraestructura
+    if: >-
+      github.event_name == 'pull_request'
+      && github.event.action == 'closed'
+      && github.event.pull_request.merged == true
+      && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      # La acción busca y descarga el artefacto del plan por la API.
+      actions: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
+          fetch-depth: 0
+
+      - name: ¿Toca .railway/?
+        id: rutas
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          if git diff --name-only "$BASE...$HEAD" | grep -q '^\.railway/'; then
+            echo 'toca=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'toca=false' >> "$GITHUB_OUTPUT"
+            echo 'El PR no tocó .railway/: nada que aplicar.'
+          fi
+
+      - name: Aplicar en Railway
+        if: steps.rutas.outputs.toca == 'true'
+        uses: railwayapp/config@9e17d413dbe219f19d62538d9c06b5dbb5e9abf8 # v1.2.0
+        with:
+          command: apply
+          railway-token: ${{ secrets.RAILWAY_TOKEN }}
