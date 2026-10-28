@@ -135,6 +135,9 @@ en una sola pasada, y explícame la causa. No ejecutes tú la imagen; la vuelvo 
 **Qué salió:** la imagen estaba bien; fallaba el curl del atajo. El proxy de Docker acepta en el
 3334 antes de que Node escuche y corta la conexión (curl 56), y `--retry-connrefused` no reintenta
 ese caso. Lo cambió por `--retry-all-errors` (commit 6a0208b). Fue una corrección pedida: es un hallazgo.
+Al relanzar, `make image-run` dio `Error 125`: el contenedor del primer intento seguía vivo con el mismo
+nombre (no había hecho `make image-stop`). Tras `make image-stop`, `make image-run` respondió
+`{"hello":"world"}` desde dentro del contenedor.
 
 ---
 

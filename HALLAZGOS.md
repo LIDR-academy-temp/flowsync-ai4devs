@@ -20,7 +20,11 @@ Las tres líneas del ejercicio, con lo que se midió y no con lo que se suponía
   Linux/WSL, `--add-host=host.docker.internal:host-gateway`, porque ese nombre no existe sin él.
 - **Esperar a que la API arranque:** `make image-run` falló la primera vez con `Error 56`. El proxy de
   Docker acepta en el puerto publicado antes de que Node escuche y corta la conexión; en local el
-  servidor ya estaba levantado cuando lo llamaba. Hubo que pedir la corrección (`--retry-all-errors`).
+  servidor ya estaba levantado cuando lo llamaba. Hubo que pedir la corrección (`--retry-all-errors`);
+  con ella, `make image-run` responde `{"hello":"world"}` desde dentro del contenedor.
+- **Limpiar lo anterior:** `make image-run` no es idempotente. Si queda vivo el contenedor de una
+  ejecución previa, muere con `Error 125` (el nombre `flowsync-api-local` ya está en uso) y hay que
+  hacer antes `make image-stop`. No se corrigió: queda como observación.
 
 No hizo falta ninguna dependencia del sistema: `pg` es JavaScript puro y funciona en Alpine sin compilar nada.
 
