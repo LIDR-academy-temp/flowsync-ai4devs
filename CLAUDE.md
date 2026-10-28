@@ -23,9 +23,13 @@ make migrate      # migra LAS DOS (la de pruebas con NODE_ENV=test)
 make seed         # 5 personas y 40 tareas de desarrollo (idempotente, solo en development)
 make db-readonly  # rol flowsync_ro (solo SELECT, también en tablas futuras) en la base de desarrollo; contraseña en DB_RO_PASSWORD
 make copia-produccion  # carga SEUDONIMIZADA la copia de producción en desarrollo, sustituyendo sus datos (solo la lanza una persona)
-make test         # db-up + migrate + npm test
+make migrate-test # migra solo la de pruebas (levanta db-test, salvo con DB_TEST_EXTERNA=1)
+make test         # migrate-test + npm test; lo mismo que corre el trabajo `test` de CI
 make db-down      # para las dos; la de desarrollo conserva el volumen
+make ci-lint      # valida .github/workflows/ con actionlint 1.7.12 en Docker; en silencio y con código 0 es que está bien
 ```
+
+El pipeline vive en `.github/workflows/ci.yml`, con cinco trabajos y una pregunta cada uno: `test`, `image` y `lint-workflows` (en paralelo, sin secretos) y `infra-plan` / `infra-apply` (`railwayapp/config`, solo para PR del propio repo que tocan `.railway/**`, con el secreto `RAILWAY_TOKEN`). En CI, la base de pruebas es un contenedor de servicio en el 54411 y el trabajo pone `DB_TEST_EXTERNA=1` para que `make test` no intente levantarla con compose. Cada acción de terceros va fijada a su SHA completo con la etiqueta en un comentario: si la subes, resuelve el SHA nuevo con `git ls-remote`, no de memoria.
 
 El SQL del rol de solo lectura está en `backend/database/readonly-role.sql`. Ojo al probarlo: dentro del contenedor la imagen tiene `trust` para `127.0.0.1`, así que una conexión por TCP desde dentro no comprueba la contraseña; hay que conectar desde el host por el puerto 54410. `DB_RO_PASSWORD` la lee solo el Makefile, por eso no está en el schema de `start/env.ts`. Ese rol puede leer **todo** lo de la base, incluidos los hashes de `users` y `auth_access_tokens`: no restaures en ella datos reales (ver `docs/incidencias/INC-0412-tareas-que-no-salen.md`).
 

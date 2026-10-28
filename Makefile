@@ -14,7 +14,7 @@ BACKEND  := backend
 FRONTEND := frontend
 
 .DEFAULT_GOAL := help
-.PHONY: test-unit test-e2e ui test-ui test-web hooks help setup start install env db-up db-down migrate seed db-readonly copia-produccion test image image-run image-stop clean
+.PHONY: test-unit test-e2e ui test-ui test-web hooks help setup start install env db-up db-test-up db-down migrate migrate-test seed db-readonly copia-produccion test image image-run image-stop ci-lint clean
 
 # La ayuda se genera a partir de los comentarios `## ...` de cada target, para
 # que no haya un segundo listado que mantener a mano y que pueda divergir.
@@ -75,12 +75,31 @@ db-up: ## Levanta las bases de desarrollo (54410) y de pruebas (54411)
 db-down: ## Para las bases (la de desarrollo conserva sus datos)
 	@docker compose down
 
+# Solo la base de pruebas, que es lo único que necesitan los tests. En CI la pone
+# el runner como contenedor de servicio en el mismo 54411, y un `docker compose up`
+# chocaría con ella por el puerto: el trabajo `test` de .github/workflows/ci.yml
+# define DB_TEST_EXTERNA=1 y aquí no se levanta nada (el runner ya esperó a su
+# healthcheck antes del primer paso).
+DB_TEST_EXTERNA ?=
+
+db-test-up:
+	@if [ -n "$(DB_TEST_EXTERNA)" ]; then \
+		echo "🐘 Base de pruebas externa (DB_TEST_EXTERNA): no se levanta con compose."; \
+	else \
+		echo "🐘 Levantando PostgreSQL de pruebas (db-test)..."; \
+		docker compose up -d --wait db-test; \
+	fi
+
 # La de pruebas es efímera: tras un `db-down` está vacía y hay que migrarla otra
-# vez, por eso `test` también pasa por aquí. NODE_ENV=test hace que Adonis cargue
-# .env.test y apunte a db-test.
+# vez, por eso los `test*` pasan por `migrate-test`. NODE_ENV=test hace que Adonis
+# cargue .env.test y apunte a db-test.
 migrate: db-up ## Migra las dos bases: desarrollo y pruebas
 	@echo "🗃️  Migrando la base de desarrollo..."
 	@cd $(BACKEND) && node ace migration:run
+	@echo "🗃️  Migrando la base de pruebas..."
+	@cd $(BACKEND) && NODE_ENV=test node ace migration:run
+
+migrate-test: db-test-up ## Migra solo la base de pruebas
 	@echo "🗃️  Migrando la base de pruebas..."
 	@cd $(BACKEND) && NODE_ENV=test node ace migration:run
 
@@ -115,13 +134,14 @@ COPIA ?= backups/produccion-2026-10-02.dump
 copia-produccion: migrate ## Carga la copia de producción SEUDONIMIZADA en desarrollo (sustituye sus datos)
 	@bash $(BACKEND)/database/copia-produccion.sh "$(COPIA)"
 
-test: migrate ## Corre los tests del backend contra la base de pruebas
+# Es exactamente lo que corre el trabajo `test` de .github/workflows/ci.yml.
+test: migrate-test ## Corre los tests del backend contra la base de pruebas
 	@cd $(BACKEND) && npm test
 
-test-unit: migrate ## Solo la suite unitaria (sin servidor ni base de datos)
+test-unit: migrate-test ## Solo la suite unitaria (sin servidor ni base de datos)
 	@cd $(BACKEND) && node ace test unit
 
-test-e2e: migrate ## Solo la suite funcional: peticiones HTTP reales contra la base de pruebas
+test-e2e: migrate-test ## Solo la suite funcional: peticiones HTTP reales contra la base de pruebas
 	@cd $(BACKEND) && node ace test functional
 
 # ---------------------------------------------------------------------------
@@ -185,6 +205,20 @@ image-run: ## Arranca la imagen en segundo plano en el puerto IMAGE_PORT (3334)
 
 image-stop: ## Para y borra el contenedor de la imagen
 	@docker rm -f $(CONTAINER)
+
+# ---------------------------------------------------------------------------
+# pipeline (.github/workflows/)
+# ---------------------------------------------------------------------------
+
+# actionlint desde su imagen oficial, sin instalar nada: el mismo comando en tu
+# máquina y en el trabajo `lint-workflows` de ci.yml. Lee la raíz del repositorio
+# (montada en solo lectura) y valida todo .github/workflows/. La imagen trae
+# shellcheck, así que también revisa los `run:`. En silencio y con código 0 es que
+# no hay nada que decir.
+ACTIONLINT := rhysd/actionlint:1.7.12
+
+ci-lint: ## Valida los workflows de .github/workflows/ con actionlint (en Docker)
+	@docker run --rm -v "$(CURDIR)":/repo:ro --workdir /repo $(ACTIONLINT) -color
 
 # ---------------------------------------------------------------------------
 # start
