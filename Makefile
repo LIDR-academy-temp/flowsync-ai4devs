@@ -178,7 +178,16 @@ image-run: ## Arranca la imagen en segundo plano (puerto IMAGE_PORT, por defecto
 		-e APP_URL=http://localhost:$(IMAGE_PORT) \
 		--add-host=host.docker.internal:host-gateway \
 		$(IMAGE)
-	@curl -s http://localhost:$(IMAGE_PORT)/
+	@# La API tarda unos segundos en escuchar: hasta 30 intentos, uno por segundo.
+	@# `-f` hace que un 4xx/5xx cuente como fallo; si no responde, sale con 1.
+	@for i in $$(seq 1 30); do \
+		if body=$$(curl -sf --max-time 2 http://localhost:$(IMAGE_PORT)/); then \
+			echo "$$body"; exit 0; \
+		fi; \
+		sleep 1; \
+	done; \
+	echo "❌ La API no respondió en http://localhost:$(IMAGE_PORT)/ tras 30 intentos (mira: docker logs $(CONTAINER))" >&2; \
+	exit 1
 
 # `rm -f` para y borra a la vez; si el contenedor ya no existe, no es un error.
 image-stop: ## Para y borra el contenedor de la imagen
