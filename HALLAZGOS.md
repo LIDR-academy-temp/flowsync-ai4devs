@@ -7,7 +7,7 @@ porque lo que se discute en el directo es dónde te chocaste.
 Escribe **una sola línea por punto**, con tus palabras y con lo que mediste, no con lo que suponías.
 
 ## 1. Cuanto pesa tu imagen y que tuvo que escribir el Dockerfile que tu maquina daba por hecho
--Tamaño imagen: 388MB
+-Tamaño imagen: 388MB en disco, 81MB en un registro Docker (comprimida)
 -Tomo las imagenes oficiales y estables para NodeJS24, y despues de eso solo instalo con npm ci las dependencias especificadas en el proyecot y nada mas.
 
 -
@@ -17,6 +17,7 @@ Escribe **una sola línea por punto**, con tus palabras y con lo que mediste, no
 Esta es la lista literal de variables:
 - NODE_ENV
 - PORT
+- HOST
 - LOG_LEVEL
 - APP_KEY
 - APP_URL
@@ -33,6 +34,7 @@ Las que son secretos son:
 
 El resto son configuracion:
 - NODE_ENV
+- HOST
 - PORT
 - LOG_LEVEL
 - APP_URL
