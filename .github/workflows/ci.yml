@@ -179,6 +179,8 @@ jobs:
             echo 'railway=true' >> "$GITHUB_OUTPUT"
           else
             echo 'railway=false' >> "$GITHUB_OUTPUT"
+            # Las comillas invertidas son Markdown del resumen, no una sustitución.
+            # shellcheck disable=SC2016
             echo 'Este pull request no toca `.railway/`: no hay plan que hacer.' >> "$GITHUB_STEP_SUMMARY"
           fi
 
@@ -244,6 +246,8 @@ jobs:
             echo 'railway=true' >> "$GITHUB_OUTPUT"
           else
             echo 'railway=false' >> "$GITHUB_OUTPUT"
+            # Las comillas invertidas son Markdown del resumen, no una sustitución.
+            # shellcheck disable=SC2016
             echo 'Este pull request no tocaba `.railway/`: no hay nada que aplicar.' >> "$GITHUB_STEP_SUMMARY"
           fi
 
