@@ -17,6 +17,13 @@ router.get('/', () => {
 })
 
 /**
+ * Comprobación de vida (`start/health.ts`). Fuera de `/api/v1` y sin sesión:
+ * la llama la plataforma de despliegue, no quien usa la API, y no cambia con
+ * la versión.
+ */
+router.get('/health', [controllers.HealthChecks, 'show'])
+
+/**
  * Documentación OpenAPI. Registra tres rutas a partir del `path` que reciba
  * —por defecto `/api`—: la interfaz en `/api`, y el documento en `/api.json` y
  * `/api.yaml`. La interfaz se sirve en la raíz del `path` y lee el documento
