@@ -18,6 +18,63 @@
       }
     },
     "schemas": {
+      "HealthResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/HealthReport"
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "HealthReport": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "warning",
+              "error"
+            ],
+            "example": "ok"
+          },
+          "checks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HealthCheck"
+            }
+          }
+        },
+        "required": [
+          "status",
+          "checks"
+        ]
+      },
+      "HealthCheck": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Database health check (pg)"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "warning",
+              "error"
+            ],
+            "example": "ok"
+          }
+        },
+        "required": [
+          "name",
+          "status"
+        ]
+      },
       "TaskListResponse": {
         "type": "object",
         "properties": {
@@ -439,6 +496,39 @@
   },
   "openapi": "3.0.0",
   "paths": {
+    "/health": {
+      "get": {
+        "summary": "Comprobar que la API puede trabajar",
+        "description": "Ejecuta las comprobaciones de `start/health.ts` (hoy, la conexión a la base de datos) y responde 200 si todas pasan y 503 si alguna falla. No pide sesión. Solo devuelve el estado global y el de cada comprobación: ni mensajes de error, ni datos de la conexión, ni del proceso.",
+        "tags": [
+          "HealthChecks"
+        ],
+        "responses": {
+          "200": {
+            "description": "Todas las comprobaciones pasan.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Alguna comprobación falla; su `status` es `error`. Mismo cuerpo que el 200.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [],
+        "security": []
+      }
+    },
     "/api": {
       "get": {
         "summary": "Documentation UI",

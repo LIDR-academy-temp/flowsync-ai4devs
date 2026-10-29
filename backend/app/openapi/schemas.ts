@@ -312,3 +312,36 @@ export class ErrorResponse {
   @ApiProperty({ type: () => [ErrorItem] })
   errors!: ErrorItem[]
 }
+
+/**
+ * Los tres estados que da `@adonisjs/health`, para el informe y para cada
+ * comprobación. `warning` cuenta como sano: solo `error` hace que la ruta
+ * responda 503.
+ */
+const HEALTH_STATUSES = ['ok', 'warning', 'error']
+
+/**
+ * Una comprobación de `GET /health`. Refleja `HealthReportTransformer`: el
+ * nombre y el estado, sin el mensaje ni los metadatos, que pueden llevar datos
+ * de la conexión.
+ */
+export class HealthCheck {
+  @ApiProperty({ type: 'string', example: 'Database health check (pg)' })
+  name!: string
+
+  @ApiProperty({ enum: HEALTH_STATUSES, example: 'ok' })
+  status!: string
+}
+
+export class HealthReport {
+  @ApiProperty({ enum: HEALTH_STATUSES, example: 'ok' })
+  status!: string
+
+  @ApiProperty({ type: () => [HealthCheck] })
+  checks!: HealthCheck[]
+}
+
+export class HealthResponse {
+  @ApiProperty({ type: () => HealthReport })
+  data!: HealthReport
+}

@@ -14,7 +14,7 @@ BACKEND  := backend
 FRONTEND := frontend
 
 .DEFAULT_GOAL := help
-.PHONY: test-unit test-e2e ui test-ui test-web hooks help setup start install env db-up db-down migrate seed db-readonly copia-produccion test clean
+.PHONY: test-unit test-e2e ui test-ui test-web hooks help setup start install env db-up db-down migrate seed db-readonly copia-produccion test image image-run image-stop clean
 
 # La ayuda se genera a partir de los comentarios `## ...` de cada target, para
 # que no haya un segundo listado que mantener a mano y que pueda divergir.
@@ -195,6 +195,39 @@ start: db-up ## Levanta las bases, el backend y el frontend
 	( cd $(FRONTEND) && npm run dev; \
 	  echo ""; echo "⚠️  El frontend se ha parado. Cerrando el backend."; kill -INT 0 ) & \
 	wait
+
+# ---------------------------------------------------------------------------
+# imagen de la API (backend/Dockerfile)
+# ---------------------------------------------------------------------------
+
+IMAGE_TAG       := flowsync-api:local
+IMAGE_CONTAINER := flowsync-api-local
+IMAGE_PORT      ?= 3334
+
+image: ## Construye la imagen de la API (flowsync-api:local)
+	@docker build -t $(IMAGE_TAG) $(BACKEND)
+
+# La configuración entra por backend/.env, y encima se fuerzan tres valores:
+#   - HOST=0.0.0.0: con localhost la API solo escucharía dentro del contenedor.
+#   - DB_HOST=host.docker.internal: dentro del contenedor, localhost es el propio
+#     contenedor, no la máquina donde corre `db`.
+#   - APP_URL: Docker no expande el `${HOST}:${PORT}` de .env, y la aplicación
+#     rechaza el valor literal al arrancar.
+# Otro puerto: make image-run IMAGE_PORT=<puerto>
+image-run: ## Arranca la imagen en segundo plano (puerto IMAGE_PORT, por defecto 3334)
+	@docker run -d --name $(IMAGE_CONTAINER) \
+		-p $(IMAGE_PORT):3333 \
+		--env-file $(BACKEND)/.env \
+		-e HOST=0.0.0.0 \
+		-e DB_HOST=host.docker.internal \
+		-e APP_URL=http://localhost:$(IMAGE_PORT) \
+		$(IMAGE_TAG)
+	@sleep 2
+	@curl -s http://localhost:$(IMAGE_PORT)/
+
+image-stop: ## Para y borra el contenedor de la imagen
+	@docker stop $(IMAGE_CONTAINER)
+	@docker rm $(IMAGE_CONTAINER)
 
 # ---------------------------------------------------------------------------
 # clean
