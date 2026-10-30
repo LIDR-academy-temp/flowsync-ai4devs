@@ -14,7 +14,7 @@ BACKEND  := backend
 FRONTEND := frontend
 
 .DEFAULT_GOAL := help
-.PHONY: test-unit test-e2e ui test-ui test-web hooks help setup start install env db-up db-down migrate seed db-readonly copia-produccion test clean
+.PHONY: test-unit test-e2e ui test-ui test-web hooks help setup start install env db-up db-down migrate seed db-readonly copia-produccion test clean image image-run image-stop ci-lint
 
 # La ayuda se genera a partir de los comentarios `## ...` de cada target, para
 # que no haya un segundo listado que mantener a mano y que pueda divergir.
@@ -67,9 +67,16 @@ env:
 
 # `--wait` bloquea hasta que los dos healthchecks pasan: la imagen crea la base
 # la primera vez y no acepta conexiones mientras tanto.
+# Con DB_EXTERNA no se toca Docker: las bases ya las ha levantado otro, como el
+# servicio PostgreSQL del trabajo `test` de .github/workflows/ci.yml, que ocupa
+# el 54411 y chocaría con db-test.
 db-up: ## Levanta las bases de desarrollo (54410) y de pruebas (54411)
-	@echo "🐘 Levantando PostgreSQL (db y db-test)..."
-	@docker compose up -d --wait db db-test
+	@if [ -n "$(DB_EXTERNA)" ]; then \
+		echo "🐘 DB_EXTERNA definida: las bases ya están levantadas, no se arranca Docker."; \
+	else \
+		echo "🐘 Levantando PostgreSQL (db y db-test)..."; \
+		docker compose up -d --wait db db-test; \
+	fi
 
 # Sin `-v`: el volumen de desarrollo se conserva. La de pruebas es tmpfs y se vacía sola.
 db-down: ## Para las bases (la de desarrollo conserva sus datos)
@@ -152,6 +159,53 @@ test-web: ## Corre el recorrido de navegador (Playwright; necesita la aplicació
 hooks: ## Activa los hooks de git del repo (pre-push: make test-ui); una vez por clon
 	@git config core.hooksPath .githooks
 	@echo "✅ Hooks activados (core.hooksPath = .githooks). Antes de cada push correrá: make test-ui"
+
+# ---------------------------------------------------------------------------
+# imagen Docker de la API (backend/Dockerfile)
+# ---------------------------------------------------------------------------
+
+IMAGE           := flowsync-api:local
+IMAGE_CONTAINER := flowsync-api-local
+# Puerto del host para la imagen; 3334 para no chocar con `make start` (3333).
+# Otro: make image-run IMAGE_PORT=XXXX
+IMAGE_PORT      ?= 3334
+
+image: ## Construye la imagen de la API (flowsync-api:local)
+	@docker build -t $(IMAGE) $(BACKEND)
+
+# La configuración entra al arrancar: backend/.env con --env-file, y tres valores
+# forzados con -e, que pisan a los del fichero:
+#   - HOST=0.0.0.0: con localhost el servidor no se ve desde fuera del contenedor.
+#   - DB_HOST=host.docker.internal: dentro del contenedor, localhost es él mismo.
+#   - APP_URL: Docker no expande el ${HOST}:${PORT} del .env.
+# --add-host hace que host.docker.internal resuelva también en Docker Engine de
+# Linux; en Docker Desktop ya existe y la opción no cambia nada.
+# El servidor tarda unos segundos en escuchar: el curl reintenta mientras la
+# conexión se rechace, en vez de fiarlo a un `sleep`.
+image-run: ## Arranca la imagen en segundo plano (puerto IMAGE_PORT, 3334 por defecto)
+	@docker run -d --name $(IMAGE_CONTAINER) \
+		-p $(IMAGE_PORT):3333 \
+		--add-host=host.docker.internal:host-gateway \
+		--env-file $(BACKEND)/.env \
+		-e HOST=0.0.0.0 \
+		-e DB_HOST=host.docker.internal \
+		-e APP_URL=http://localhost:$(IMAGE_PORT) \
+		$(IMAGE)
+	@curl -s --retry 15 --retry-delay 1 --retry-connrefused http://localhost:$(IMAGE_PORT)/; echo
+
+# `|| true`: no falla si el contenedor no existe.
+image-stop: ## Para y borra el contenedor de la imagen
+	@docker rm -f $(IMAGE_CONTAINER) >/dev/null 2>&1 || true
+
+# ---------------------------------------------------------------------------
+# CI (.github/workflows/)
+# ---------------------------------------------------------------------------
+
+# actionlint desde su imagen oficial: no instala nada en la máquina. Sin
+# argumentos revisa todos los ficheros de .github/workflows/ del directorio de
+# trabajo, que es la raíz del repo montada en /repo.
+ci-lint: ## Valida los workflows de GitHub Actions con actionlint
+	@docker run --rm -v "$(CURDIR):/repo" -w /repo rhysd/actionlint:1.7.12 -color
 
 # ---------------------------------------------------------------------------
 # start
