@@ -43,12 +43,12 @@ Cuatro cosas, cada una con el comando que dice si la tienes y el síntoma de ten
 
 Se trabaja sobre **tu propio fork**, porque sobre el repositorio del curso no tienes permiso de escritura: la entrega es un pull request desde él hacia el del curso.
 
-1. Entra en **https://github.com/LIDR-academy/flowsync-ai4devs** y pulsa **Fork**.
+1. Entra en **https://github.com/lidr-academy-temp/flowsync-ai4devs** y pulsa **Fork**.
 2. Clona **tu fork** y entra en la carpeta.
 3. Añade el repositorio original como `upstream` y trae de ahí la rama de partida:
 
 ```bash
-git remote add upstream https://github.com/LIDR-academy/flowsync-ai4devs.git
+git remote add upstream https://github.com/lidr-academy-temp/flowsync-ai4devs.git
 git fetch upstream
 git checkout -b s13/start upstream/s13/start
 ```
@@ -174,7 +174,7 @@ En un `HALLAZGOS.md` en la raíz del repositorio:
 
 1. Trabaja en la rama **`pipeline-<tus-iniciales>`** que creaste al preparar el entorno, no en `s13/start`.
 2. **Guarda tus prompts en `prompts.md`, en la raíz.** Ese nombre y esa ubicación no son negociables: es lo que lee la herramienta que revisa las entregas. El repositorio ya lo trae con su plantilla puesta. **Cada prompt va en su propio bloque de código**, con el modelo y la herramienta que usaste.
-3. Empuja tu rama a tu fork (`git push -u origin pipeline-<tus-iniciales>`) y abre el **pull request desde tu fork hacia el repositorio del curso** (`github.com/LIDR-academy/flowsync-ai4devs`; comprueba que el repositorio base que te propone GitHub es ese y no tu fork), con `HALLAZGOS.md` y `prompts.md` dentro. **Puede que tu pipeline no llegue a correr sobre ese pull request**: en un repositorio público, las Actions de quien colabora por primera vez suelen esperar a que alguien las apruebe, y los dos trabajos de infraestructura se saltan de todos modos, porque un fork no recibe los secretos. Si corre, mira qué pasa; si no, apúntalo. En los dos casos, **apúntalo en la tercera línea si cambia tu respuesta**.
+3. Empuja tu rama a tu fork (`git push -u origin pipeline-<tus-iniciales>`) y abre el **pull request desde tu fork hacia el repositorio del curso** (`github.com/lidr-academy-temp/flowsync-ai4devs`; comprueba que el repositorio base que te propone GitHub es ese y no tu fork), con `HALLAZGOS.md` y `prompts.md` dentro. **Puede que tu pipeline no llegue a correr sobre ese pull request**: en un repositorio público, las Actions de quien colabora por primera vez suelen esperar a que alguien las apruebe, y los dos trabajos de infraestructura se saltan de todos modos, porque un fork no recibe los secretos. Si corre, mira qué pasa; si no, apúntalo. En los dos casos, **apúntalo en la tercera línea si cambia tu respuesta**.
 
 ### El plazo
 
