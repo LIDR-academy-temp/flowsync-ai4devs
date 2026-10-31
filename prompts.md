@@ -147,3 +147,16 @@ En `.github/workflows/ci.yml` hay dos cambios sin commitear que no pedí: en los
 - `make image-run`, con la base de desarrollo levantada, respondió `{"hello":"world"}`, y `make image-stop` lo paró y lo borró.
 
 Queda en `50f20c5` (el `ci.yml`) y `0a0f13e` (el `Dockerfile`).
+
+---
+
+## Prompt 8 · la instrucción al orquestador para anotar el fallo de OpenAPI
+
+**Modelo:** Opus 5.5 (`claude-opus-5-5`)
+**Herramienta:** la misma sesión de Claude Code Desktop que el Prompt 1
+
+```
+continua.
+```
+
+**Qué salió:** respondía a la oferta del orquestador de anotar en `HALLAZGOS.md` y en la descripción del PR que `npm run openapi:check` falla desde `s13/start`, algo que salió al contrastar la rama con el directo. Lo volvió a medir sobre `71d72cb`: sale con 1. En un worktree aparte, con `jsonschema` fijado a 1.4.1 con `overrides`, como en `s13/end`, sale con 0. Lo anotó al final del punto 3 de `HALLAZGOS.md`. El `overrides` no se aplica en este PR: solo se anota.
