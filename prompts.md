@@ -25,13 +25,13 @@ distinto, y sin este archivo no se distinguen.
 
 ```
 Ok, ahora vamos con el S13, te mando el detalle.
-```
 
-```
+[Aquí iba pegada, entera, la lección del curso «Ejercicio FlowSync: empaqueta la API y escribe su pipeline», unos 23.000 caracteres: el setup del entorno, las partes A, B y C y cómo se entrega. No se reproduce aquí.]
+
 Queda pendiente el envivo y te comparto después la transcripción, ejecuta tu todo.
 ```
 
-**Qué salió:** entre los dos mensajes iba pegado el texto del ejercicio. El orquestador creó `pipeline-RLL` desde `s13/start` (`82f61e6`) y midió la línea de partida: `make test` daba `Tests  69 passed (69)`; `ls .github/workflows backend/Dockerfile .railway` confirmó que no había imagen ni infraestructura, pero en `.github/workflows` había tres workflows y no los dos que dice el enunciado, porque también está `chromatic.yml`; `backend/.env` declara 14 variables (`TZ PORT HOST NODE_ENV LOG_LEVEL APP_KEY APP_URL SESSION_DRIVER DB_HOST DB_PORT DB_USER DB_PASSWORD DB_DATABASE DB_RO_PASSWORD`). Escribió los prompts de la parte A y de la parte B con las restricciones del enunciado y los lanzó, cada uno en una sesión nueva del CLI abierta en la raíz del repositorio, con permisos acotados: el agente podía leer, editar, compilar y commitear, pero no ejecutar `docker` ni `make`, porque el enunciado pide que construir y arrancar la imagen y validar el pipeline lo haga la persona. Esos pasos los ejecutó el orquestador después, en el orden del enunciado. Lo que escribió el agente se commiteó tal cual, sin retoques, porque el agente no hizo ningún commit.
+**Qué salió:** fue un solo mensaje, con la lección pegada en medio; hasta la revisión del PR aparecía aquí partido en dos bloques y sin decir qué se pegó. El orquestador creó `pipeline-RLL` desde `s13/start` (`82f61e6`) y midió la línea de partida: `make test` daba `Tests  69 passed (69)`; `ls .github/workflows backend/Dockerfile .railway` confirmó que no había imagen ni infraestructura, pero en `.github/workflows` había tres workflows y no los dos que dice el enunciado, porque también está `chromatic.yml`; `backend/.env` declara 14 variables (`TZ PORT HOST NODE_ENV LOG_LEVEL APP_KEY APP_URL SESSION_DRIVER DB_HOST DB_PORT DB_USER DB_PASSWORD DB_DATABASE DB_RO_PASSWORD`). Escribió los prompts de la parte A y de la parte B con las restricciones del enunciado y los lanzó, cada uno en una sesión nueva del CLI abierta en la raíz del repositorio, con permisos acotados: el agente podía leer, editar, compilar y commitear, pero no ejecutar `docker` ni `make`, porque el enunciado pide que construir y arrancar la imagen y validar el pipeline lo haga la persona. Esos pasos los ejecutó el orquestador después, en el orden del enunciado. Lo que escribió el agente se commiteó tal cual, sin retoques, porque el agente no hizo ningún commit.
 
 ---
 
@@ -159,4 +159,40 @@ Queda en `50f20c5` (el `ci.yml`) y `0a0f13e` (el `Dockerfile`).
 continua.
 ```
 
-**Qué salió:** respondía a la oferta del orquestador de anotar en `HALLAZGOS.md` y en la descripción del PR que `npm run openapi:check` falla desde `s13/start`, algo que salió al contrastar la rama con el directo. Lo volvió a medir sobre `71d72cb`: sale con 1. En un worktree aparte, con `jsonschema` fijado a 1.4.1 con `overrides`, como en `s13/end`, sale con 0. Lo anotó al final del punto 3 de `HALLAZGOS.md`. El `overrides` no se aplica en este PR: solo se anota.
+**Qué salió:** respondía a la oferta del orquestador de anotar en `HALLAZGOS.md` y en la descripción del PR que `npm run openapi:check` falla desde `s13/start`, algo que salió al contrastar la rama con el directo. Lo volvió a medir sobre `71d72cb`: sale con 1. En un worktree aparte, con `jsonschema` fijado a 1.4.1 con `overrides`, como en `s13/end`, sale con 0. Lo anotó al final del punto 3 de `HALLAZGOS.md`. En ese momento solo se anotó; el `overrides` lo aplicó después el Prompt 10.
+
+---
+
+## Prompt 9 · la instrucción al orquestador para aplicar el `overrides` y cerrar los pendientes
+
+**Modelo:** Opus 5.5 (`claude-opus-5-5`)
+**Herramienta:** la misma sesión de Claude Code Desktop que el Prompt 1
+
+```
+Sí, aplica el overrides al PR y continua con todos los pendientes que tengas.
+```
+
+**Qué salió:** el orquestador escribió el Prompt 10 para el `overrides`. Como pendientes, aplicó dos opcionales de la revisión que dependían solo de los documentos: decir entre corchetes qué se pegó en el Prompt 1, y partir los puntos de `HALLAZGOS.md` en viñetas, con la línea de cada punto en la primera. El tercero, proteger `infra-apply` con un Environment de GitHub con aprobación, queda para cuando haya despliegue, como dice la revisión: hoy no hay `.railway/` ni `RAILWAY_TOKEN`, y las reglas de aprobación se configuran en el repositorio, no en el workflow.
+
+---
+
+## Prompt 10 · fijar `jsonschema` a 1.4.1
+
+**Modelo:** Sonnet 5.5 (`claude-sonnet-5-5`)
+**Herramienta:** Claude Code CLI 2.1.312 en WSL, sin interfaz, en otra sesión nueva sobre la misma rama, con `Read`, `Edit`, `Glob`, `Grep`, órdenes de lectura y `npm install`; `npm run`, `git add`, `git commit`, `git push`, `gh`, `docker`, `make` y `curl` denegados
+
+```
+En `backend`, `npm run openapi:check` sale con 1 y `Invalid command exported from "openapi_check.js" file. Invalid URL`. Viene de la rama de partida: `backend/package-lock.json` instala `jsonschema` 1.5.0, que llega a través de `@adonisjs/core` y `@adonisjs/ace`. Lo he comprobado en una copia aparte de la rama: con `jsonschema` fijado a 1.4.1 mediante `overrides` en `backend/package.json`, la orden sale con 0 y dice que `docs/api/openapi.json` está al día.
+
+Añade a `backend/package.json` un bloque `overrides` que fije `jsonschema` a `1.4.1`, y actualiza `backend/package-lock.json` con `npm install`, para que `npm ci` instale esa versión. No cambies ninguna otra dependencia ni ningún otro fichero. No ejecutes `openapi:check` ni los tests y no hagas commit: eso lo hago yo después.
+```
+
+**Qué salió:** 9 llamadas, 53 segundos y 0,38 USD. Se le denegaron dos órdenes que hacían `cd` antes de una orden de git, y las rehízo con `Grep` y con `npm install --prefix` sobre `backend`, `--package-lock-only` e `--ignore-scripts`. Añadió el bloque `overrides`, y el lockfile cambia solo en la entrada de `jsonschema`, que pasa a colgar de `@adonisjs/ace` en la 1.4.1. Después, a mano:
+
+- `npm ci` desde el lockfile, y `npm ls jsonschema` da 1.4.1.
+- `openapi:check` sale con 0 y dice que `docs/api/openapi.json` está al día.
+- `make test` da `Tests 69 passed (69)`.
+- `npm audit --omit=dev` sigue en 23: una crítica, una alta, 19 moderadas y 2 bajas.
+- `make image` construye con la 1.4.1 dentro, y `make image-run` responde `{"hello":"world"}`.
+
+Queda en `5211dd2`.
