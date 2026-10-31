@@ -71,9 +71,9 @@ jobs:
       # compose solo levanta la de desarrollo, que `make test` exige sana.
       DB_SERVICES: db
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
           cache: npm
@@ -115,7 +115,7 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       # LÍMITE: este trabajo afirma que la imagen SE CONSTRUYE desde cero (las
       # dos etapas del Dockerfile, `npm ci` y `npm run build`). No afirma que
@@ -132,7 +132,7 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Validar con actionlint
         run: make ci-lint
@@ -163,7 +163,8 @@ jobs:
           REPO: ${{ github.repository }}
           PR: ${{ github.event.pull_request.number }}
         run: |
-          if gh api "repos/$REPO/pulls/$PR/files" --paginate --jq '.[].filename' | grep -q '^\.railway/'; then
+          files=$(gh api "repos/$REPO/pulls/$PR/files" --paginate --jq '.[].filename')
+          if grep -q '^\.railway/' <<<"$files"; then
             echo 'touched=true' >> "$GITHUB_OUTPUT"
           else
             echo 'touched=false' >> "$GITHUB_OUTPUT"
@@ -171,7 +172,7 @@ jobs:
           fi
 
       - if: steps.railway.outputs.touched == 'true'
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - if: steps.railway.outputs.touched == 'true'
         uses: railwayapp/config@9e17d413dbe219f19d62538d9c06b5dbb5e9abf8 # v1.2.0
@@ -203,7 +204,8 @@ jobs:
           REPO: ${{ github.repository }}
           PR: ${{ github.event.pull_request.number }}
         run: |
-          if gh api "repos/$REPO/pulls/$PR/files" --paginate --jq '.[].filename' | grep -q '^\.railway/'; then
+          files=$(gh api "repos/$REPO/pulls/$PR/files" --paginate --jq '.[].filename')
+          if grep -q '^\.railway/' <<<"$files"; then
             echo 'touched=true' >> "$GITHUB_OUTPUT"
           else
             echo 'touched=false' >> "$GITHUB_OUTPUT"
@@ -212,7 +214,7 @@ jobs:
 
       # El código fusionado, no el de la rama del PR.
       - if: steps.railway.outputs.touched == 'true'
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.pull_request.merge_commit_sha }}
 
