@@ -93,3 +93,57 @@ En `.github/workflows/ci.yml`, el paso «Correr la suite» del trabajo `test` ej
 ```
 
 **Qué salió:** a la primera: 3 llamadas, 11 segundos y 0,31 USD. Añadió `shell: bash` al paso y corrigió el comentario, sin tocar nada más. `make ci-lint` siguió en silencio con código 0. Queda en `2ef9cd4`.
+
+---
+
+## Prompt 5 · la instrucción al orquestador tras la revisión del PR
+
+**Modelo:** Opus 5.5 (`claude-opus-5-5`)
+**Herramienta:** la misma sesión de Claude Code Desktop que el Prompt 1
+
+```
+Sí, aplica los tres ajustes al PR #38
+```
+
+**Qué salió:** era la respuesta a una pregunta del orquestador. Había leído la revisión del PR y propuesto aplicar los dos ajustes importantes (la tubería de `gh api` en `infra-plan` e `infra-apply` y la versión completa en los comentarios de las acciones) y uno de los opcionales (la caché de npm). Antes de escribir el prompt al agente, comprobó con `git ls-remote --tags` que los SHA fijados son la `v7.0.1` de `actions/checkout` y la `v7.1.0` de `actions/setup-node`. Luego reprodujo el fallo: sacó los dos pasos tal cual del `ci.yml` y los ejecutó con un `gh` falso, con `bash -e`, como los ejecuta Actions, y con `bash -eo pipefail`, como los ejecutaría con `shell: bash`. Si `gh` sale con 1, los dos pasos salen con 0 y `touched=false` en los dos shells. Con `pipefail`, además, una lista larga que empieza por `.railway/` da `touched=false` por SIGPIPE.
+
+---
+
+## Prompt 6 · los ajustes de la revisión
+
+**Modelo:** Sonnet 5.5 (`claude-sonnet-5-5`)
+**Herramienta:** Claude Code CLI 2.1.312 en WSL, sin interfaz, en otra sesión nueva sobre la misma rama, solo con `Read`, `Edit`, `Glob`, `Grep` y órdenes de lectura; `git add`, `git commit`, `git push`, `gh`, `docker`, `make` y `curl` denegados
+
+```
+La revisión del pull request pide tres ajustes sobre lo que ya está escrito. Aplícalos y no toques nada más.
+
+1. En `.github/workflows/ci.yml`, el paso «¿Toca el PR .railway/**?» de `infra-plan` y el paso «¿Tocó el PR .railway/**?» de `infra-apply` meten `gh api ... | grep -q '^\.railway/'` en la condición de un `if`. Si `gh api` falla (permisos, límite de peticiones, red), el `if` lo lee como «no toca `.railway/`», escribe `touched=false` y el trabajo sale en verde: en `infra-apply` eso es no aplicar la infraestructura sin avisar. Lo he reproducido en local con un `gh` falso que sale con 1: los dos pasos salen con 0 y `touched=false`. Declarar `shell: bash` no lo arregla: dentro de la condición de un `if`, `-e` no aborta aunque haya `pipefail`; y cuando `grep -q` encuentra la línea y cierra la tubería antes de que `gh` termine de escribir, `gh` muere por SIGPIPE y el `if` da falso aunque el PR sí toque `.railway/`. También eso lo he reproducido. En los dos pasos, guarda primero la lista en una variable con `files=$(gh api ...)`, con los mismos argumentos, y busca después con `grep -q '^\.railway/' <<<"$files"`, para que un fallo de `gh api` aborte el paso.
+
+2. En el mismo fichero, los comentarios de versión de `actions/checkout` y `actions/setup-node` dicen `# v7`, que es una etiqueta móvil. Los SHA no cambian: `3d3c42e5aac5ba805825da76410c181273ba90b1` es la `v7.0.1` de `actions/checkout` y `949feb2413d6458794dcd2491c4babbbce0c15c1` es la `v7.1.0` de `actions/setup-node`; lo he comprobado con `git ls-remote --tags`. Cambia esos comentarios a la versión completa.
+
+3. En `backend/Dockerfile`, el `npm ci --omit=dev` de la etapa final deja 28 MB de caché de npm en `/home/node/.npm`. Bórrala en la misma capa con `npm cache clean --force`.
+
+No construyas la imagen y no hagas commit: eso lo hago yo después.
+```
+
+**Qué salió:** 8 llamadas, 30 segundos y 0,37 USD, sin órdenes denegadas. Aplicó los tres ajustes, pero se le coló un cambio que no le pedí y que no mencionó en su respuesta: en los dos mensajes que esos pasos escriben en el resumen quitó el espacio antes de `.railway/**`, y quedaron «El PR no toca.railway/**» y «El PR no tocó.railway/**». Lo vi con `git diff --word-diff`. Devolverlo es el Prompt 7.
+
+---
+
+## Prompt 7 · devolver el espacio que quitó el Prompt 6
+
+**Modelo:** Sonnet 5.5 (`claude-sonnet-5-5`)
+**Herramienta:** la misma que el Prompt 6, en otra sesión nueva
+
+```
+En `.github/workflows/ci.yml` hay dos cambios sin commitear que no pedí: en los mensajes que los pasos de `infra-plan` e `infra-apply` escriben en `$GITHUB_STEP_SUMMARY` ha desaparecido el espacio antes de `.railway/**`, y ahora dicen «El PR no toca.railway/**» y «El PR no tocó.railway/**». Devuélveles el espacio. No toques nada más y no hagas commit.
+```
+
+**Qué salió:** 4 llamadas, 18 segundos y 0,32 USD. Se le denegó un `sed -i` y lo rehízo con `Edit`. El diff quedó solo con los tres ajustes. Después, a mano:
+
+- `make ci-lint` siguió en silencio, con código 0.
+- La misma simulación de los dos pasos: si `gh` falla, ahora salen con 1. En los demás casos dan el `touched` correcto, también con la lista larga y con `pipefail`.
+- `make image` construyó en 66 segundos una imagen de 388 MB en disco y 81 MB comprimida, frente a 436 y 100. `/home/node/.npm` pasa de 28 MB a 200 KB. La comparación no es solo de la caché: la reconstrucción trajo Node 24.22.2 en lugar de 24.22.1.
+- `make image-run`, con la base de desarrollo levantada, respondió `{"hello":"world"}`, y `make image-stop` lo paró y lo borró.
+
+Queda en `50f20c5` (el `ci.yml`) y `0a0f13e` (el `Dockerfile`).
