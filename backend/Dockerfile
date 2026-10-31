@@ -17,6 +17,6 @@ RUN mkdir /app && chown node:node /app
 WORKDIR /app
 USER node
 COPY --from=build --chown=node:node /app/build ./
-RUN npm ci --omit=dev
+RUN npm ci --omit=dev && npm cache clean --force
 EXPOSE 3333
 CMD ["node", "bin/server.js"]
