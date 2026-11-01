@@ -1,3 +1,7 @@
+import '../otel.js'
+// OpenTelemetry tiene que inicializarse antes que cualquier otro módulo para que
+// la autoinstrumentación pueda engancharse: esta importación va siempre primera.
+// https://opentelemetry.io/docs/languages/js/getting-started/nodejs/
 /*
 |--------------------------------------------------------------------------
 | HTTP server entrypoint

@@ -1,0 +1,20 @@
+# Configuración del recolector de OpenTelemetry (servicio `observability` de
+# compose.yaml). Recibe OTLP por gRPC (4317) y HTTP (4318) y escribe cada traza
+# entera en su log con el exportador `debug`. Solo para desarrollo local.
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+exporters:
+  debug:
+    verbosity: detailed
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      exporters: [debug]
