@@ -184,6 +184,11 @@ dentro.
 | 2 | el primer `git commit` | hook del proyecto `datos-que-no-salen`: correo real en el aviso `deprecated` de `glob` dentro de `backend/package-lock.json` |
 | 3 | nada | — |
 
+Durante el prompt 3, el recolector `observability` estaba en marcha: lo había levantado Pablo, y el
+lanzador se ejecutó con `PERMITIR_RECOLECTOR=1`, que solo omite su comprobación de puertos. Las
+reglas que impiden leer sus registros eran las mismas que en los prompts 1 y 2, y el prompt lo
+repetía.
+
 ---
 
 ## B. Pedidos a la sesión de acompañamiento (no enviados al agente)
@@ -499,6 +504,21 @@ Informá el hash, los archivos incluidos y el estado final de Git. La práctica 
     lo que pedía la consigna (ver `HALLAZGOS.md`).
   - Claude Code no leyó esos registros ni esos fragmentos.
 - **Parada:** Pablo detuvo `make start` antes del pedido 06, para que el lanzador aceptara arrancar.
+
+## Notas de revisión
+
+- **Atribución del análisis de trazas.** El pedido 07 (literal) atribuye el cálculo de las
+  duraciones a «el asistente de esta conversación». La atribución era imprecisa y la corrige el
+  pedido 08: fue **ChatGPT, en la conversación de acompañamiento**. Los dos pedidos se conservan
+  literales; vale la del 08.
+- **Revisión adversarial (cierre).** Después de publicar el PR, una sesión separada invocó una vez
+  al subagente `adversarial-reviewer` del proyecto, con lectura de GitHub sin credenciales y sin
+  publicar nada.
+  - Su prompt lo redactó la sesión de acompañamiento (`prompts/04-revision-adversarial/prompt.txt`
+    en la carpeta de notas; no se reproduce aquí).
+  - Sus hallazgos documentales se incorporaron a `HALLAZGOS.md` y `docs/slo/api.md` y a estas
+    notas; ningún cambio de código se hizo a raíz de ella.
+  - La clasificación completa de los hallazgos está en `NOTAS.md`, en la carpeta de notas.
 
 ## Ausencias (marcadas, no reconstruidas)
 

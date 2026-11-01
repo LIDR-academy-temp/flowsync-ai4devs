@@ -59,6 +59,7 @@ Consecuencias de la definición:
 
 - La duración es la que se mide en el servidor, desde que llega la petición hasta que se envía la respuesta. Es la duración del span HTTP de entrada que genera la instrumentación de OpenTelemetry. No incluye la red entre el cliente y el servidor.
 - Una petición del alcance que termina sin código de respuesta (por ejemplo, porque la conexión se cortó) cuenta en el denominador y como mala.
+- El indicador se calcula con el código HTTP y la duración definidos arriba, no con el estado del span (OK o ERROR) que asigne la instrumentación: ese estado no equivale a esta definición.
 
 ## 3. Objetivo
 
@@ -131,6 +132,7 @@ Si en la última hora hay menos de 20 peticiones, o ninguna, la alerta **no se e
 - **Agotamiento anticipado:** con un ritmo de 14,4 sostenido, el presupuesto de 28 días (672 h) se agota en `672 h / 14,4 ≈ 46,7 h`, menos de dos días. La alerta avisa con tiempo para actuar antes de agotarlo.
 - **Consumo por hora que dispara:** una hora a ritmo 14,4 consume `14,4 / 672 ≈ 2,1 %` del presupuesto. Con el volumen supuesto, 20.000 / 672 ≈ 30 peticiones por hora, eso son unas 4 o 5 peticiones malas en una hora (alrededor de 4,3 de las 200 del presupuesto).
 - **Volumen mínimo:** con poco tráfico, una sola petición mala dispararía la proporción (1 de 3 = 33 %). Exigir 20 peticiones evita esas falsas alarmas. A cambio, en horas de tráfico muy bajo la alerta queda ciega: en esas horas el consumo del presupuesto solo se ve en el SLI de 28 días.
+- **Solo consumos rápidos:** la alerta elegida detecta consumos rápidos del presupuesto. No cubre todos los ritmos que podrían agotarlo: un ritmo sostenido mayor que 1 y menor que 14,4 lo agota antes de que termine la ventana de 28 días sin disparar la alerta (con ritmo 5, en unos 5,6 días: 672 h / 5 = 134,4 h).
 - **Una única ventana:** Esta alerta usa una única ventana de una hora. Puede diluir picos breves y no distingue por sí sola un pico de un fallo sostenido con la misma proporción de peticiones malas. Un fallo concentrado en pocos minutos puede disparar la alerta y dejar de cumplir la condición poco después. Es una limitación aceptada para el ejercicio.
 
 ## 6. Lo que este documento no es
