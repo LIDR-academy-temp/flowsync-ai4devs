@@ -39,6 +39,11 @@ jobs:
       APP_KEY: clave-de-ci-sin-valor-secreto
       APP_URL: http://127.0.0.1:3333
       SESSION_DRIVER: memory
+      # Identidad del servicio para OpenTelemetry; `start/env.ts` también las
+      # exige. La versión es el commit que se comprueba.
+      APP_NAME: flowsync-api
+      APP_VERSION: ${{ github.sha }}
+      APP_ENV: test
     steps:
       - uses: actions/checkout@v7
 
