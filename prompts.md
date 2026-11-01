@@ -121,3 +121,29 @@ Sigues sin tocar nada fuera de `backend/tests/`, y sin commit ni cambio de rama.
 ```
 
 **Qué salió:** 13 llamadas a herramientas, unos 3 minutos. Escribió `backend/tests/unit/models/task.spec.ts`, con los cinco bordes (los de «sin hacer», en `pending` y en `in_progress`) y el caso del texto contra el `Date`. Ese `Date` no lo construyó a mano: usó el parser que `pg` registra para `DATE` (`getTypeParser(builtins.DATE, 'text')` de `pg-types`), e hidrató la tarea desde una fila con `Task.$createFromAdapterResult`, como hace Lucid. Antes de comparar comprueba que lo que llega al modelo es un `Date`, aunque `database/schema.ts` lo declare `string`. Resultado: `Tests  4 passed, 2 failed (6)`; fallan «tarea ya hecha, con la fecha pasada» (devuelve `true`) y «da lo mismo con la fecha en texto que con la que entrega PostgreSQL» (con el día anterior da `true` en texto y `false` con el `Date`). Avisó de que importa `pg-types`, que no está en `package.json`, y de que `CLAUDE.md` todavía dice que `tests/unit/` no existe.
+
+---
+
+## Prompt 5 · la instrucción al orquestador para comprobar la duda del huso
+
+**Modelo:** Opus 5.5 (`claude-opus-5-5`)
+**Herramienta:** la misma sesión de Claude Code Desktop que el Prompt 1
+
+```
+Cierra también los huecos de S9, S10 y S11
+```
+
+**Qué salió:** respondía a la lista de huecos que el orquestador lleva de las sesiones anteriores; de la s11 quedaba la duda del punto 3 de `HALLAZGOS.md`. Comprobó primero la premisa: WSL está en `America/Mexico_City`, y la API sale en UTC por el `TZ=UTC` de `backend/.env`, que `@adonisjs/env` 7.0.0 solo aplica si el proceso no trae `TZ`. Con `TZ=Asia/Tokyo`, `Env.create` no lo cambia y `new Date(2026, 7, 19)` es `2026-08-18T15:00:00.000Z`. En un worktree aparte de `9d37657`, con su propio proyecto de compose, `make test` dio `Tests  49 passed, 4 failed (53)` en UTC, en México y en Tokio, con los mismos cuatro en rojo. En ese momento solo se anotó fuera del repositorio.
+
+---
+
+## Prompt 6 · la instrucción al orquestador para llevar la comprobación al PR
+
+**Modelo:** Opus 5.5 (`claude-opus-5-5`)
+**Herramienta:** la misma sesión de Claude Code Desktop que el Prompt 1
+
+```
+Sí, añade la corrección al PR #33 y actualiza "Estatus S1-S13.md"
+```
+
+**Qué salió:** antes de escribir, el orquestador midió el `GET` sobre esta rama, en otro worktree aparte y solo contra `db-test`: con la API en Tokio, una tarea que vence el 19 vuelve como `2026-08-18T15:00:00.000Z`; en México, como `2026-08-19T06:00:00.000Z`, y en UTC, como `2026-08-19T00:00:00.000Z`. `isOverdue` sale `false` con `today=2026-08-20` en los tres. Añadió la comprobación como viñeta debajo de la línea del punto 3 de `HALLAZGOS.md`, sin cambiar la línea entregada, y la misma corrección a la descripción del PR.
