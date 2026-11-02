@@ -196,3 +196,42 @@ Añade a `backend/package.json` un bloque `overrides` que fije `jsonschema` a `1
 - `make image` construye con la 1.4.1 dentro, y `make image-run` responde `{"hello":"world"}`.
 
 Queda en `5211dd2`.
+
+---
+
+## Prompt 11 · la instrucción al orquestador para ver el pipeline en GitHub
+
+**Modelo:** Opus 5.5 (`claude-opus-5-5`)
+**Herramienta:** la misma sesión de Claude Code Desktop que el Prompt 1
+
+```
+Dime como activar los Actions en el fork, abre el PR
+```
+
+**Qué salió:** respondía al orquestador, que había dicho que para ver correr el pipeline había que activar Actions en el fork, porque la lista de workflows del fork salía vacía. Se equivocaba: esa lista sale vacía hasta que algo corre, y no hubo que activar nada. Abrió [rene2bcore/flowsync-ai4devs-temp#1](https://github.com/rene2bcore/flowsync-ai4devs-temp/pull/1), de `pipeline-RLL` contra `s13/start`, que no se fusiona, y los cuatro workflows arrancaron sin aprobación, porque el PR sale del propio repositorio.
+
+---
+
+## Prompt 12 · la instrucción al orquestador para leer el resultado
+
+**Modelo:** Opus 5.5 (`claude-opus-5-5`)
+**Herramienta:** la misma sesión de Claude Code Desktop que el Prompt 1
+
+```
+Revisa el resultado del pipeline y actualiza el Estatus
+```
+
+**Qué salió:** el orquestador leyó cada trabajo y su log sobre `37e62a0`: CI y OpenAPI en verde, con `Tests  69 passed (69)`, y chromatic y revisor en rojo por los secretos que el fork no tiene. El «Estatus» son notas del curso fuera del repositorio; aquí no cambió nada.
+
+---
+
+## Prompt 13 · la instrucción al orquestador para llevarlo a `HALLAZGOS.md`
+
+**Modelo:** Opus 5.5 (`claude-opus-5-5`)
+**Herramienta:** la misma sesión de Claude Code Desktop que el Prompt 1
+
+```
+Sí, actualiza el HALLAZGOS.md del PR #38 y versiona en GitHub.
+```
+
+**Qué salió:** respondía a la oferta del orquestador de corregir el punto 3, que seguía diciendo que el pipeline solo estaba validado en local. Antes de escribir volvió a los logs: el paso de la suite corre con `pipefail`, de `infra-plan` solo corre el paso que mira `.railway/`, y `railwayapp/config`, aunque va fijada por SHA, descarga tres acciones por etiqueta, lo que comprobó en su `action.yml` en ese mismo SHA. Lo llevó a «Lo que cambia sin avisar», «La infraestructura» y «Dónde está validado», y añadió los Prompts 11 a 13.
