@@ -14,7 +14,7 @@ BACKEND  := backend
 FRONTEND := frontend
 
 .DEFAULT_GOAL := help
-.PHONY: test-unit test-e2e ui test-ui test-web hooks help setup start install env db-up db-down migrate seed db-readonly copia-produccion test clean
+.PHONY: test-unit test-e2e ui test-ui test-web hooks help setup start install env db-up db-down migrate seed db-readonly copia-produccion test clean image image-run image-stop ci-lint
 
 # La ayuda se genera a partir de los comentarios `## ...` de cada target, para
 # que no haya un segundo listado que mantener a mano y que pueda divergir.
@@ -152,6 +152,59 @@ test-web: ## Corre el recorrido de navegador (Playwright; necesita la aplicació
 hooks: ## Activa los hooks de git del repo (pre-push: make test-ui); una vez por clon
 	@git config core.hooksPath .githooks
 	@echo "✅ Hooks activados (core.hooksPath = .githooks). Antes de cada push correrá: make test-ui"
+
+# ---------------------------------------------------------------------------
+# imagen de la API (backend/Dockerfile)
+# ---------------------------------------------------------------------------
+
+IMAGE     := flowsync-api:local
+CONTAINER := flowsync-api-local
+# Puerto del host; el 3333 queda libre para `make start`.
+IMAGE_PORT ?= 3334
+
+image: ## Construye la imagen de la API (flowsync-api:local)
+	@docker build -t $(IMAGE) -f $(BACKEND)/Dockerfile $(BACKEND)
+
+# La configuración sale de backend/.env, con tres cambios para que funcione
+# dentro del contenedor: escuchar en todas las interfaces, llegar a la base del
+# host por host.docker.internal y anunciar la URL del puerto publicado. En Linux
+# ese nombre no existe por defecto: --add-host lo apunta a la pasarela de Docker.
+image-run: ## Arranca la imagen en segundo plano (puerto IMAGE_PORT, por defecto 3334)
+	@docker run -d --name $(CONTAINER) \
+		-p $(IMAGE_PORT):3333 \
+		--env-file $(BACKEND)/.env \
+		-e HOST=0.0.0.0 \
+		-e DB_HOST=host.docker.internal \
+		-e APP_URL=http://localhost:$(IMAGE_PORT) \
+		--add-host=host.docker.internal:host-gateway \
+		$(IMAGE)
+	@# La API tarda unos segundos en escuchar: hasta 30 intentos, uno por segundo.
+	@# `-f` hace que un 4xx/5xx cuente como fallo; si no responde, sale con 1.
+	@for i in $$(seq 1 30); do \
+		if body=$$(curl -sf --max-time 2 http://localhost:$(IMAGE_PORT)/); then \
+			echo "$$body"; exit 0; \
+		fi; \
+		sleep 1; \
+	done; \
+	echo "❌ La API no respondió en http://localhost:$(IMAGE_PORT)/ tras 30 intentos (mira: docker logs $(CONTAINER))" >&2; \
+	exit 1
+
+# `rm -f` para y borra a la vez; si el contenedor ya no existe, no es un error.
+image-stop: ## Para y borra el contenedor de la imagen
+	@docker rm -f $(CONTAINER) >/dev/null 2>&1 || true
+
+# ---------------------------------------------------------------------------
+# integración continua
+# ---------------------------------------------------------------------------
+
+# actionlint en su imagen oficial, sin instalar nada en la máquina. Sin
+# argumentos revisa todos los ficheros de .github/workflows/ del directorio de
+# trabajo, que es la raíz del repo montada en /repo. Su código de salida es el
+# de la receta: un hallazgo hace fallar `make ci-lint`.
+ACTIONLINT_IMAGE := rhysd/actionlint:1.7.12
+
+ci-lint: ## Valida los workflows de .github/workflows/ con actionlint (Docker)
+	@docker run --rm -v "$(CURDIR)":/repo -w /repo $(ACTIONLINT_IMAGE) -color
 
 # ---------------------------------------------------------------------------
 # start

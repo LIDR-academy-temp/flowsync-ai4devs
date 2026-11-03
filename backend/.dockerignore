@@ -1,0 +1,13 @@
+# Lo que la construcción rehace dentro de la imagen
+node_modules
+build
+tmp
+
+# Ningún .env entra en el contexto: la configuración llega al arrancar el
+# contenedor. `.env.*` cubre .env.test, .env.example y cualquier .env.local.
+.env
+.env.*
+
+# Ruido local
+npm-debug.log
+.DS_Store

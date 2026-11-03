@@ -12,4 +12,5 @@ export const controllers = {
   TaskStatuses: () => import('#controllers/task_statuses_controller'),
   TaskTrash: () => import('#controllers/task_trash_controller'),
   Tasks: () => import('#controllers/tasks_controller'),
+  HealthChecks: () => import('#controllers/health_checks_controller'),
 }

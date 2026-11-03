@@ -1,0 +1,218 @@
+name: CI
+
+# Cada cambio propuesto, su cierre (para aplicar la infraestructura al fusionar)
+# y cada push a la rama principal.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+  push:
+    branches: [main]
+
+# Ningún permiso por defecto: cada trabajo declara los suyos.
+permissions: {}
+
+# Si llega otro push o se actualiza el PR de la misma rama, solo interesa la
+# última ejecución. El cierre del PR va en su propio grupo y no se cancela: es
+# el que aplica la infraestructura, y cortarlo a medias dejaría Railway en un
+# estado que nadie ha revisado.
+concurrency:
+  group: ci-${{ github.event.action == 'closed' && 'cierre-' || '' }}${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: ${{ github.event.action != 'closed' }}
+
+jobs:
+  # ¿La suite completa del backend pasa en una máquina limpia?
+  test:
+    name: suite del backend
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # Al cerrar el PR ya se probó en su último push: aquí solo se aplica.
+    if: github.event.action != 'closed'
+    permissions:
+      contents: read
+    services:
+      # La base de pruebas, con la imagen de producción y en el puerto que
+      # espera backend/.env.test. GitHub no empieza los pasos hasta que el
+      # healthcheck dice que está sana; pregunta por TCP por la misma razón que
+      # compose.yaml: el servidor temporal del primer arranque solo escucha en
+      # el socket.
+      postgres:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_USER: flowsync
+          POSTGRES_PASSWORD: flowsync
+          POSTGRES_DB: flowsync_test
+        ports:
+          - 54411:5432
+        options: >-
+          --health-cmd "pg_isready -h 127.0.0.1 -U flowsync -d flowsync_test"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 30
+          --health-start-period 5s
+    env:
+      # Lo que `start/env.ts` exige y `backend/.env.test` no trae (este pone
+      # SESSION_DRIVER y las DB_*). NODE_ENV=test es además lo que hace que
+      # Adonis cargue .env.test. Mismo criterio que openapi.yml: nada de esto es
+      # un secreto; `APP_KEY` existe solo para que la validación pase.
+      NODE_ENV: test
+      PORT: 3333
+      HOST: 127.0.0.1
+      LOG_LEVEL: silent
+      APP_KEY: clave-de-ci-sin-valor-secreto
+      APP_URL: http://127.0.0.1:3333
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Instalar dependencias del backend
+        working-directory: backend
+        run: npm ci
+
+      # `pipefail` para que el código de salida sea el de `make test` y no el
+      # de `tee`: si la suite falla, el trabajo queda en rojo.
+      - name: make test
+        shell: bash
+        run: |
+          set -o pipefail
+          make test 2>&1 | tee "$RUNNER_TEMP/make-test.log"
+
+      # El recuento va al resumen de la ejecución, que es lo que se ve sin
+      # abrir el log. Corre también si la suite falló, para decir cuántos.
+      - name: Recuento de tests en el resumen
+        if: ${{ !cancelled() }}
+        shell: bash
+        run: |
+          log="$RUNNER_TEMP/make-test.log"
+          {
+            echo "### Tests del backend"
+            echo
+            if [ -f "$log" ] && linea=$(sed -E 's/\x1b\[[0-9;]*m//g' "$log" \
+                | grep -E '^[[:space:]]*Tests[[:space:]:]' | tail -n 1) && [ -n "$linea" ]; then
+              echo "$linea" | sed -E 's/^[[:space:]]*Tests[[:space:]:]*/**Tests:** /'
+            else
+              echo "No hay recuento: la suite no llegó a ejecutarse. Mira el paso \`make test\`."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # ¿La imagen de la API puede construirse desde cero?
+  image:
+    name: imagen de la API
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: github.event.action != 'closed'
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # Esto demuestra que la imagen SE CONSTRUYE. No la arranca: no demuestra
+      # que la API arranque dentro del contenedor ni que responda.
+      - name: make image
+        run: make image
+
+  # ¿Los ficheros de .github/workflows son válidos para actionlint?
+  lint-workflows:
+    name: actionlint
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: github.event.action != 'closed'
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: make ci-lint
+        run: make ci-lint
+
+  # ¿Qué cambiaría en la infraestructura si el cambio se fusionara?
+  infra-plan:
+    name: plan de Railway
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Un PR desde un fork no ve RAILWAY_TOKEN: nunca se planifica para él.
+    if: >-
+      github.event_name == 'pull_request'
+      && github.event.action != 'closed'
+      && github.event.pull_request.head.repo.full_name == github.repository
+    # `contents: read` para el checkout; `pull-requests: write` para listar los
+    # ficheros del PR y publicar el plan como comentario. Sin `id-token: write`:
+    # la acción comenta entonces con el token del trabajo.
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      # El `if` de un trabajo no puede mirar qué ficheros toca el PR, y un
+      # `paths:` en `on:` filtraría el workflow entero, no solo este trabajo.
+      # Por eso la detección va aquí, como paso, y condiciona solo el plan.
+      - name: ¿El PR toca .railway/?
+        id: cambios
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          ficheros=$(gh api --paginate "repos/$GITHUB_REPOSITORY/pulls/$PR/files" --jq '.[].filename')
+          if grep -q '^\.railway/' <<< "$ficheros"; then
+            echo "railway=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "railway=false" >> "$GITHUB_OUTPUT"
+            echo "El PR no toca .railway/: no hay plan que hacer."
+          fi
+
+      - if: steps.cambios.outputs.railway == 'true'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - if: steps.cambios.outputs.railway == 'true'
+        uses: railwayapp/config@9e17d413dbe219f19d62538d9c06b5dbb5e9abf8 # v1.2.0
+        with:
+          command: plan
+          railway-token: ${{ secrets.RAILWAY_TOKEN }}
+
+  # ¿Se aplican los cambios de infraestructura después de fusionar el PR?
+  infra-apply:
+    name: apply de Railway
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Solo el cierre de un PR que se ha fusionado. Un PR cerrado sin fusionar
+    # nunca llega aquí.
+    if: >-
+      github.event_name == 'pull_request'
+      && github.event.action == 'closed'
+      && github.event.pull_request.merged == true
+    # `contents: read` para el checkout; `pull-requests: read` para listar los
+    # ficheros del PR; `actions: read` para descargar el plan que dejó
+    # infra-plan como artefacto, que es lo que se aplica.
+    permissions:
+      contents: read
+      pull-requests: read
+      actions: read
+    steps:
+      # Misma limitación que en infra-plan: el filtro de rutas va como paso.
+      - name: ¿El PR toca .railway/?
+        id: cambios
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          ficheros=$(gh api --paginate "repos/$GITHUB_REPOSITORY/pulls/$PR/files" --jq '.[].filename')
+          if grep -q '^\.railway/' <<< "$ficheros"; then
+            echo "railway=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "railway=false" >> "$GITHUB_OUTPUT"
+            echo "El PR no tocaba .railway/: no hay nada que aplicar."
+          fi
+
+      - if: steps.cambios.outputs.railway == 'true'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - if: steps.cambios.outputs.railway == 'true'
+        uses: railwayapp/config@9e17d413dbe219f19d62538d9c06b5dbb5e9abf8 # v1.2.0
+        with:
+          command: apply
+          railway-token: ${{ secrets.RAILWAY_TOKEN }}
