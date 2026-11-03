@@ -4,6 +4,7 @@ type ParamValue = string | number | bigint | boolean
 
 export type ScannedRoutes = {
   ALL: {
+    'health_checks.show': { paramsTuple?: []; params?: {} }
     'openapi.html': { paramsTuple?: []; params?: {} }
     'openapi.json': { paramsTuple?: []; params?: {} }
     'openapi.yaml': { paramsTuple?: []; params?: {} }
@@ -23,6 +24,7 @@ export type ScannedRoutes = {
     'tasks.task_comments.store': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
   }
   GET: {
+    'health_checks.show': { paramsTuple?: []; params?: {} }
     'openapi.html': { paramsTuple?: []; params?: {} }
     'openapi.json': { paramsTuple?: []; params?: {} }
     'openapi.yaml': { paramsTuple?: []; params?: {} }
@@ -33,6 +35,7 @@ export type ScannedRoutes = {
     'tasks.task_comments.index': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
   }
   HEAD: {
+    'health_checks.show': { paramsTuple?: []; params?: {} }
     'openapi.html': { paramsTuple?: []; params?: {} }
     'openapi.json': { paramsTuple?: []; params?: {} }
     'openapi.yaml': { paramsTuple?: []; params?: {} }
