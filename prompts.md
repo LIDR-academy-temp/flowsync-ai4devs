@@ -22,14 +22,27 @@ Borra el ejemplo de abajo cuando escribas el primero.
 
 ## Prompt 1
 
-**Modelo:** Opus 1M xHigh
+**Modelo:** Sonnet 5.5
 **Herramienta:** Claude Code
 
 ```
-Este es el ejemplo. Bórralo.
+Instrumenta el backend con OpenTelemetry usando el paquete oficial
+@adonisjs/otel. Instálalo desde backend/ con node ace add @adonisjs/otel,
+no con npm install.
 
-El prompt va aquí dentro, entero y con sus saltos de línea,
-para que se sepa dónde empieza y dónde acaba.
+Además:
+- Añade a compose.yaml un servicio llamado observability con la imagen
+  otel/opentelemetry-collector-contrib:0.162.0, que publique los puertos 4317
+  y 4318 y monte un archivo de configuración con un receptor otlp para grpc y
+  http, y un exportador debug con verbosity: detailed en la tubería de trazas.
+- La importación que añade el instalador en backend/bin/server.ts tiene que
+  quedar como primera línea del archivo.
+- Las variables APP_NAME, APP_VERSION y APP_ENV deben estar en backend/.env,
+  backend/.env.example, backend/.env.test y en el bloque env: de
+  .github/workflows/openapi.yml. Usa APP_NAME=flowsync-api.
+- En backend/.env pon OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318.
+
+No toques el frontend ni ningún otro workflow. No arranques nada: lo haré yo.
 ```
 
 **Qué salió:** (opcional, una línea) funcionó a la primera / tuve que insistir / me inventó una ruta que no existe.
