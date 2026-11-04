@@ -126,3 +126,16 @@ Además:
 
 Sin más alertas, sin paneles y sin implementar nada. Al terminar, dime qué has decidido por tu cuenta y haz commit en slo-MC. No abras ningún pull request.
 ```
+
+## Prompt 5
+
+**Modelo:** Claude Opus 5.5
+**Herramienta:** Claude Code
+
+```
+Ya he visto trazas reales en el recolector. No había ningún defecto: mi recuento dio 0 porque medí sin haber generado tráfico contra la API.
+
+Actualiza solo docs/slo/api.md. Los atributos que he visto en mis trazas son http.route, http.response.status_code y http.method, y la duración es el fin menos el inicio del tramo con Kind: Server. Quita las marcas de "sin comprobar" de esos nombres, deja una sola opción donde ahora hay dos, y corrige la frase que dice que aún no se han visto trazas reales.
+
+No cambies los valores del objetivo, el presupuesto ni la alerta. No toques ningún otro archivo ni leas los registros del recolector. Haz commit en slo-MC y no abras ningún pull request.
+```
