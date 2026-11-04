@@ -1,0 +1,24 @@
+# Recolector de OpenTelemetry de desarrollo (servicio `observability` de
+# compose.yaml): recibe trazas por OTLP y las escribe en su propio registro.
+#
+# Los receptores escuchan en 0.0.0.0 porque corren dentro del contenedor: en
+# `localhost` no les llegaría lo que entra por los puertos publicados. A quién
+# se expone lo decide `compose.yaml`, que los publica solo en loopback.
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+exporters:
+  debug:
+    verbosity: detailed
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      exporters: [debug]

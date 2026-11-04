@@ -11,6 +11,12 @@
 # primer arranque la imagen levanta un servidor temporal que SOLO escucha en el
 # socket mientras crea la base, y un `pg_isready` por socket diría "sano" antes
 # de tiempo. Por TCP solo responde el servidor definitivo.
+#
+# - `observability`: recolector de OpenTelemetry, en los puertos 4317 (gRPC) y
+#   4318 (HTTP). No es una base y `make db-up` no lo levanta: tiene su propio
+#   perfil y arranca con `docker compose up -d observability`. Por ese perfil, un
+#   `docker compose down` a secas (`make db-down`) tampoco lo para: se para con
+#   `docker compose down observability`.
 
 services:
   db:
@@ -49,6 +55,21 @@ services:
       timeout: 3s
       retries: 30
       start_period: 5s
+
+  observability:
+    image: otel/opentelemetry-collector-contrib:0.162.0
+    # Con un perfil, un `docker compose up` sin nombrar servicios no lo arranca;
+    # nombrándolo, Compose activa el perfil solo.
+    profiles: ['observability']
+    # La ruta explícita, para que el fichero montado abajo sea el que se usa.
+    command: ['--config=/etc/otelcol-contrib/config.yaml']
+    ports:
+      # Solo loopback, como `db`: las trazas pueden llevar datos de personas y el
+      # receptor no pide credenciales.
+      - '127.0.0.1:4317:4317'
+      - '127.0.0.1:4318:4318'
+    volumes:
+      - ./observability/otel-collector.yaml:/etc/otelcol-contrib/config.yaml:ro
 
 volumes:
   db-data:
