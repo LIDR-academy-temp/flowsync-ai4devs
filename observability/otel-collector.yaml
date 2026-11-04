@@ -1,0 +1,29 @@
+# Collector de OpenTelemetry de FlowSync (servicio `observability` de compose.yaml):
+# recibe OTLP y escribe en sus logs todo lo que le llega.
+
+receivers:
+  otlp:
+    protocols:
+      # 0.0.0.0 porque se habla dentro del contenedor: con el valor por defecto
+      # (localhost) los puertos publicados no llegarían al receptor. Lo que limita
+      # el acceso al host es el `127.0.0.1` de `ports` en compose.yaml.
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+exporters:
+  debug:
+    verbosity: detailed
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      exporters: [debug]
+    metrics:
+      receivers: [otlp]
+      exporters: [debug]
+    logs:
+      receivers: [otlp]
+      exporters: [debug]

@@ -11,6 +11,10 @@
 # primer arranque la imagen levanta un servidor temporal que SOLO escucha en el
 # socket mientras crea la base, y un `pg_isready` por socket diría "sano" antes
 # de tiempo. Por TCP solo responde el servidor definitivo.
+#
+# `observability` es el collector de OpenTelemetry del backend. No lo levanta
+# `make db-up`: se arranca con `docker compose up -d observability` y lo recibido
+# se ve con `docker compose logs -f observability`.
 
 services:
   db:
@@ -49,6 +53,16 @@ services:
       timeout: 3s
       retries: 30
       start_period: 5s
+
+  observability:
+    image: otel/opentelemetry-collector-contrib:0.162.0
+    ports:
+      # Solo loopback: OTLP no lleva autenticación, y en 0.0.0.0 cualquiera de la
+      # red podría mandar datos y hacerlos pasar por los del backend.
+      - '127.0.0.1:4317:4317' # OTLP/gRPC
+      - '127.0.0.1:4318:4318' # OTLP/HTTP
+    volumes:
+      - ./observability/otel-collector.yaml:/etc/otelcol-contrib/config.yaml:ro
 
 volumes:
   db-data:
