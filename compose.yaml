@@ -50,5 +50,17 @@ services:
       retries: 30
       start_period: 5s
 
+  # Recolector de OpenTelemetry para desarrollo: recibe trazas OTLP del
+  # backend (gRPC en 4317, HTTP en 4318) y las escribe en su salida con el
+  # exportador `debug`. Configuración en observability/otel-collector.yaml.
+  observability:
+    image: otel/opentelemetry-collector-contrib:0.162.0
+    command: ['--config=/etc/otelcol-contrib/config.yaml']
+    volumes:
+      - ./observability/otel-collector.yaml:/etc/otelcol-contrib/config.yaml:ro
+    ports:
+      - '4317:4317'
+      - '4318:4318'
+
 volumes:
   db-data:
