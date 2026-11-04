@@ -39,6 +39,10 @@ jobs:
       APP_KEY: clave-de-ci-sin-valor-secreto
       APP_URL: http://127.0.0.1:3333
       SESSION_DRIVER: memory
+      # Las añadió @adonisjs/otel al schema de `start/env.ts`.
+      APP_NAME: flowsync-api
+      APP_VERSION: 0.0.0
+      APP_ENV: test
     steps:
       - uses: actions/checkout@v7
 

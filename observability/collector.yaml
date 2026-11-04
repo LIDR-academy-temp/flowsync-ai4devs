@@ -1,0 +1,28 @@
+# Recolector de OpenTelemetry para desarrollo: servicio `observability` de
+# compose.yaml. Recibe trazas por OTLP y las escribe en sus propios registros
+# (`docker compose logs observability`); no las guarda ni tiene interfaz.
+#
+# Los receptores escuchan en 0.0.0.0 y no en localhost a propósito: desde la
+# versión 0.104 el valor por defecto es localhost, que DENTRO del contenedor
+# solo acepta conexiones del propio contenedor. El backend llega desde el host
+# a través de los puertos publicados, así que con localhost no llegaría nada.
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+exporters:
+  # detailed: cada tramo con su Trace ID, nombre, tipo y horas de inicio y fin.
+  # El nivel por defecto solo da un recuento.
+  debug:
+    verbosity: detailed
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      exporters: [debug]
