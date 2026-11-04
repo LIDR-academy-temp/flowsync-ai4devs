@@ -1,0 +1,23 @@
+# Recolector local de trazas (OpenTelemetry Collector). Lo levanta el servicio
+# `observability` de compose.yaml. Recibe por OTLP (gRPC en 4317, HTTP en 4318)
+# y vuelca cada traza al log del contenedor con todo el detalle: sirve para ver
+# qué emite la aplicación, no para almacenar nada.
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+exporters:
+  debug:
+    verbosity: detailed
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: []
+      exporters: [debug]
