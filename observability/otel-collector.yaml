@@ -1,0 +1,32 @@
+# OpenTelemetry Collector del servicio `observability` de compose.yaml.
+#
+# Recibe por OTLP (gRPC en el 4317, HTTP en el 4318) las trazas que manda el
+# backend (backend/config/otel.ts) y las imprime en los logs del contenedor:
+#
+#   docker compose logs -f observability
+#
+# `verbosity: detailed` saca cada tramo entero (trace ID, span ID, nombre,
+# horas de inicio y fin, atributos); el nivel por defecto (`basic`) solo
+# imprime un recuento por lote.
+#
+# Solo hay tubería de trazas: el backend no manda ni métricas ni logs.
+
+receivers:
+  otlp:
+    protocols:
+      # 0.0.0.0 porque escucha dentro del contenedor; desde fuera solo se
+      # llega por los puertos que publica compose.yaml.
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+exporters:
+  debug:
+    verbosity: detailed
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      exporters: [debug]
