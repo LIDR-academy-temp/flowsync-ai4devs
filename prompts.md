@@ -89,3 +89,28 @@ No cambies rutas ni valores y no toques código. En español y conciso.
 ```
 
 **Qué salió:** a la primera. Presupuesto de 200 peticiones; comprobó en `node_modules/@adonisjs/otel` que los atributos `http.route` y `http.response.status_code` existen. El prompt de diagnóstico del borrador no hizo falta: las trazas llegaron (primero conté 3 por la exportación por lotes; al repetir, 9).
+
+## Prompt 3
+
+**Modelo:** Claude Opus 5.5
+**Herramienta:** Claude Code (app de escritorio, sobre el repo en WSL)
+
+Los datos los medí yo con un comando `awk` sobre `docker compose logs observability` que calcula la
+duración de cada tramo; al agente solo le pasé los números, no los registros.
+
+```
+Vacía HALLAZGOS.md (tiene la plantilla de otro ejercicio) y deja solo un título y tres líneas,
+una por punto, con estos datos que he medido yo:
+
+1. Trazas: llegaron 9 trazas distintas. En la más lenta, POST /api/v1/tasks, el tramo Server duró
+   145,1 ms y el tramo que más tiempo consumió fue el propio Server: el insert flowsync.tasks solo
+   4,4 ms; la segunda creación tardó 27,5 ms.
+2. Para que llegaran: funcionó a la primera; al principio solo conté 3 porque el SDK exporta por
+   lotes, y al repetir eran 9.
+3. Presupuesto de error: 200 peticiones en 28 días con 20.000 supuestas; me parece poco
+   para un mes de uso real de FlowSync.
+
+No inventes datos ni añadas nada que no te haya dado.
+```
+
+**Qué salió:** a la primera. El agente añadió dos cosas que no le di explícitamente: que la causa probable es el arranque en frío y el porqué de «poco» (unas 7 peticiones al día).
