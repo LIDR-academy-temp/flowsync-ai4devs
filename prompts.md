@@ -184,13 +184,3 @@ Si algo falla, corrige solo eso. Lista los archivos que entrarían en el commit 
 
 **Qué salió:** todo sí, sin nada que corregir; `backend/.env` ignorado por `backend/.gitignore`.
 
-## Prompt 8
-
-**Modelo:** Claude Fable 5.1
-**Herramienta:** Claude Code
-
-```
-Rellena prompts.md y Luego pega el prompt de volver a medir y de reescribir HALLAZGOS.md
-```
-
-**Qué salió:** este fichero. La medición se repitió después del recorrido y `HALLAZGOS.md` quedó con las 24 trazas y el desglose del `GET /api/v1/tasks` más lento.
