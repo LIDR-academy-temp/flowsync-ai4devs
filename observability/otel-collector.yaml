@@ -1,0 +1,24 @@
+# Collector de OpenTelemetry del entorno local (servicio `observability` de
+# compose.yaml). Recibe OTLP por gRPC (4317) y por HTTP (4318) y escribe cada
+# traza entera en su log: `docker compose logs -f observability`.
+#
+# `0.0.0.0` dentro del contenedor: con `localhost` el receptor solo escucharía
+# en el loopback del contenedor y el puerto publicado no llegaría a él.
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+exporters:
+  debug:
+    verbosity: detailed
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      exporters: [debug]
