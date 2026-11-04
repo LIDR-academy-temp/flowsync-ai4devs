@@ -1,3 +1,8 @@
+import '../otel.js'
+/**
+ * OpenTelemetry initialization - the import above MUST be the first line
+ * @see https://opentelemetry.io/docs/languages/js/getting-started/nodejs/
+ */
 /*
 |--------------------------------------------------------------------------
 | HTTP server entrypoint

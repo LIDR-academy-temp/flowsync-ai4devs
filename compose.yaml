@@ -50,5 +50,19 @@ services:
       retries: 30
       start_period: 5s
 
+  # Colector de OpenTelemetry: recibe las trazas del backend por OTLP (gRPC en
+  # 4317, HTTP en 4318) y las vuelca al log del contenedor con el exportador
+  # `debug` (`docker compose logs -f observability`). Configuración en
+  # observability/otel-collector.yaml. No lo levanta `make db-up`:
+  # `docker compose up -d observability`.
+  observability:
+    image: otel/opentelemetry-collector-contrib:0.162.0
+    command: ['--config=/etc/otelcol-contrib/config.yaml']
+    ports:
+      - '4317:4317'
+      - '4318:4318'
+    volumes:
+      - ./observability/otel-collector.yaml:/etc/otelcol-contrib/config.yaml:ro
+
 volumes:
   db-data:
