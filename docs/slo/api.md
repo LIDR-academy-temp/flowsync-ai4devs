@@ -73,18 +73,18 @@ Contar los 4xx como buenos tiene un coste: si un error de código devuelve 404 o
 
 La duración se mide en el servidor: no incluye la red ni lo que tarde el navegador.
 
-### Nombres de atributo: sin comprobar
+### Nombres de atributo
 
-> **Sin comprobar.** No se ha conseguido ver ninguna traza real en el recolector. Estos nombres salen de leer el código del paquete `@adonisjs/otel` y son candidatos, no un hecho. Hay que confirmarlos con una traza real antes de escribir ninguna consulta.
+Son los que aparecen en trazas reales del recolector de desarrollo:
 
-| Dato | Atributo candidato | Estado |
-|---|---|---|
-| Ruta | `http.route` | sin comprobar |
-| Código de respuesta | `http.response.status_code` o `http.status_code` | sin comprobar |
-| Método | `http.request.method` o `http.method` | sin comprobar |
-| Duración | fin menos inicio del span de servidor | sin comprobar |
+| Dato | Atributo |
+|---|---|
+| Ruta | `http.route` |
+| Código de respuesta | `http.response.status_code` |
+| Método | `http.method` |
+| Duración | fin menos inicio del tramo con `Kind: Server` |
 
-Al confirmarlos, hay que mirar también un 5xx causado por una excepción: el middleware de `@adonisjs/otel` escribe el código después de `next()`, y falta ver qué valor queda en ese caso.
+Falta mirar un 5xx causado por una excepción: el middleware de `@adonisjs/otel` escribe el código después de `next()`, y falta ver qué valor queda en ese caso.
 
 ## Objetivo (SLO)
 
@@ -170,7 +170,7 @@ El texto describe el síntoma, y entre corchetes van los datos que se rellenan a
 
 - **El recolector solo escribe en sus registros.** El servicio `observability` de [`compose.yaml`](../../compose.yaml) usa un exportador `debug`. No guarda las trazas en ningún almacén que se pueda consultar, no calcula fracciones ni ventanas y no avisa a nadie.
 - **Solo está en desarrollo.** Se levanta a mano con Docker Compose. [`.railway/railway.ts`](../../.railway/railway.ts) no define ni recolector ni destino de trazas, así que en producción no hay nada que recoja estos datos.
-- **Aún no se han visto trazas reales.** De ahí que los nombres de atributo estén sin comprobar.
+- **Ya se han visto trazas reales, pero solo en desarrollo.** Sirvieron para confirmar los nombres de atributo; nada las procesa todavía.
 - **El volumen es una suposición.** No hay ninguna medida del tráfico real.
 - **El registro del recolector no dura 28 días.** Se pierde al recrear el contenedor.
 
