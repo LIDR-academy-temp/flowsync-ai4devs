@@ -35,6 +35,17 @@ Para consultar el esquema real hay un servidor MCP `dbhub` (DBHub 1.4.0 de Byteb
 
 La suite apunta a `db-test` por `backend/.env.test`, que AdonisJS carga solo con `NODE_ENV=test` y que pisa a `.env`. Como `db-test` es efímera, tras un `db-down` hay que volver a migrarla (`make migrate`).
 
+### Observabilidad (desde la raíz)
+
+El backend se instrumenta con `@adonisjs/otel` (`backend/otel.ts`, importado primero en `bin/server.ts`, y `backend/config/otel.ts`) y exporta por OTLP/HTTP a `localhost:4318`. Lo recibe el servicio `observability` de `compose.yaml`, un collector configurado en `observability/otel-collector.yaml` con el receptor `otlp` (4317 gRPC, 4318 HTTP, solo en loopback) y el exportador `debug` con `verbosity: detailed`. `make db-up` no lo levanta:
+
+```bash
+docker compose up -d observability
+docker compose logs -f observability   # lo que llega del backend
+```
+
+El SDK solo está activo con `NODE_ENV=development`: producción aún no tiene collector y en tests está apagado. `userContext: false` es a propósito: sin él, `user.id`, `user.email` y `user.roles` irían en los spans y acabarían en los logs de Docker. Las rutas de salud (`/health`) se ignoran por defecto, así que no sirven para comprobar que llegan datos.
+
 ### Backend (`cd backend`)
 
 ```bash
