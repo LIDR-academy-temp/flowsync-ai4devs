@@ -43,7 +43,7 @@ Instrumenta el backend con el paquete oficial de OpenTelemetry y añade al compo
 **Herramienta:** Claude Code
 
 ```
-"De las trazas observadsa, cual tomo mas tiempo?
+De las trazas observads, cual tomo mas tiempo?
 ```
 
 **Qué salió:**
@@ -80,7 +80,7 @@ Creo el SLI con los datos solicitados, un SLO de 99% y asumio tiempos de espera 
 Alerta para tareas que fallan o van lentas, con un ritmo de consumo mayor a 1 medido en 24hrs. Las peticiones que no llegan al backend no cuentan porque sale de lo que registra el propio sevidor del backend. Documento el estado de medicion.
 
 
-## Prompt 3
+## Prompt 4
 
 **Modelo:** Opus 5.5 High
 **Herramienta:** Claude Code
@@ -89,7 +89,7 @@ Alerta para tareas que fallan o van lentas, con un ritmo de consumo mayor a 1 me
 Cual es el presupuesto de error con estos datos dado en peticiones, evalua si es poco o mucho para un mes de uso real de FlowSync, comparando con aplicaciones similares.
 ```
 
-**Qué salió:** Comparacion con aplicaciones similares, estimaciones de las peticiones por dia (1000), peticiones malas por dia 1.7 lo que da una caida de 1hr 36mins en 28 dias  lo que es asumible en un MVP. Recomienda no subir el presuesto a 99.9% porque significan 10mins de caida.
+**Qué salió:** Comparacion con aplicaciones similares, estimaciones de las peticiones por dia (1000), peticiones malas por persona y dia 1.7 y una caida de 1hr 36mins en 28 dias  lo que es asumible en un MVP. Recomienda no subir el objetivo a 99.9% porque el presupuesto bajaria de 200 a 20 peticiones, unos 10mins de caida.
 Tambien ajustar estos SLI/SLO con 28 dias de datos reales, en caso de superar el 99% con holgura, entonces podria subirse a 99.5%.
 
 
