@@ -31,4 +31,11 @@ export default await Env.create(new URL('../', import.meta.url), {
   DB_USER: Env.schema.string(),
   DB_PASSWORD: Env.schema.secret(),
   DB_DATABASE: Env.schema.string(),
+
+  // OpenTelemetry (config/otel.ts). Opcionales: CI y Railway no las declaran
+  // y la app tiene que seguir arrancando sin ellas.
+  APP_NAME: Env.schema.string.optional(),
+  APP_VERSION: Env.schema.string.optional(),
+  APP_ENV: Env.schema.enum.optional(['development', 'staging', 'production'] as const),
+  OTEL_EXPORTER_OTLP_ENDPOINT: Env.schema.string.optional({ format: 'url', tld: false }),
 })

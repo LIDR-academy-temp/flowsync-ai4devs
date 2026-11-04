@@ -6,21 +6,21 @@ porque lo que se discute en el directo es dónde te chocaste.
 
 Escribe **una sola línea por punto**, con tus palabras y con lo que mediste, no con lo que suponías.
 
-## 1. Las filas que cambian y la rama
+## 1. Cuantas filas aparecieron y que tramo consumio mas tiempo en la mas lenta
 
-Cuántas filas cambian de valor en tu cambio de esquema, medido con una consulta, y en qué rama del
-árbol de reversibilidad cae. Si tu migración no toca datos, dilo tal cual: también es una respuesta.
+El comando `docker compose logs observability | grep "Trace ID" | sort -u | wc -l` arroja 48 lineas.
+.
 
 -
 
-## 2. Lo que la batería de pruebas no podía ver
+## 2. Que cambiaste para conseguir que llegaran
 
-Una cosa que la batería de pruebas no podía ver. Si no encontraste ninguna, escribe qué buscaste y dónde.
+Inicialmente no encontraba ninguna, tras reiniciar con 'make start' y arrancar `observability` corrio sin problemas tras comprobar que @backend/bin/server.ts importaba otel.js y que los puertos y variables de entorno estaban bien configurados.
 
 -
 
 ## 3. Tu duda
 
-De qué dudaste, o qué no pudiste comprobar.
+Dude si el servicio `observability` estaba corriendo cuando realice las trazas manualmente porque la primera medida decia 0 trazas, pero tras reiniciar el servicio las trazas estaban guardadas.
 
 -
