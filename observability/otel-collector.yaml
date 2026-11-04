@@ -1,0 +1,28 @@
+# Configuración del recolector de OpenTelemetry (servicio `observability` de
+# compose.yaml, montada en /etc/otelcol-contrib/config.yaml).
+#
+# Recibe OTLP por los dos protocolos y escribe cada tramo en el log del
+# contenedor. Con `verbosity: detailed` sale el identificador de traza, el
+# nombre y las horas de inicio y fin de cada tramo; el nivel por defecto solo
+# da un recuento.
+
+receivers:
+  otlp:
+    protocols:
+      # 0.0.0.0 dentro del contenedor: el valor por defecto es `localhost`, que
+      # no es alcanzable desde los puertos publicados y las trazas no llegarían
+      # sin dar error. Hacia fuera, compose.yaml solo publica en 127.0.0.1.
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+exporters:
+  debug:
+    verbosity: detailed
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      exporters: [debug]
