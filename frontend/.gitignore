@@ -12,6 +12,9 @@ dist
 dist-ssr
 *.local
 
+# Variables de entorno locales (`.env.example` sí se versiona)
+.env
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
@@ -22,3 +25,10 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+*storybook.log
+storybook-static
+
+# Playwright
+test-results
+playwright-report

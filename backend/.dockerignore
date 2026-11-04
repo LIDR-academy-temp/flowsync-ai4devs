@@ -1,0 +1,9 @@
+# Se reconstruyen dentro de la imagen; los de la máquina no deben colarse.
+node_modules
+build
+tmp
+
+# Ningún fichero de entorno entra en el contexto de construcción: la
+# configuración llega al arrancar el contenedor.
+**/.env
+**/.env.*
