@@ -1,0 +1,26 @@
+# Configuración del recolector local (servicio `observability` de compose.yaml).
+#
+# Recibe trazas OTLP del backend (gRPC en 4317, HTTP en 4318) y las imprime en
+# la salida del contenedor: `docker compose logs -f observability`.
+#
+# Los receptores escuchan en 0.0.0.0 a propósito: por defecto el recolector solo
+# escucha en localhost DENTRO del contenedor y el puerto publicado no llegaría.
+# Quien limita el acceso desde fuera es compose.yaml (solo loopback del host).
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+exporters:
+  debug:
+    verbosity: detailed
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      exporters: [debug]
