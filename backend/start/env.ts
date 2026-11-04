@@ -31,4 +31,9 @@ export default await Env.create(new URL('../', import.meta.url), {
   DB_USER: Env.schema.string(),
   DB_PASSWORD: Env.schema.secret(),
   DB_DATABASE: Env.schema.string(),
+
+  // OpenTelemetry (@adonisjs/otel): identifican el servicio en las trazas
+  APP_NAME: Env.schema.string(),
+  APP_VERSION: Env.schema.string(),
+  APP_ENV: Env.schema.enum(['development', 'test', 'staging', 'production'] as const),
 })

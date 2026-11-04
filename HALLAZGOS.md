@@ -1,26 +1,5 @@
 # Hallazgos
 
-Aquí van **las tres líneas** del ejercicio, una por cada punto de abajo. Es lo único que hay que
-traer hecho: un cambio de motor a medias con estas tres líneas escritas vale más que lo contrario,
-porque lo que se discute en el directo es dónde te chocaste.
-
-Escribe **una sola línea por punto**, con tus palabras y con lo que mediste, no con lo que suponías.
-
-## 1. Las filas que cambian y la rama
-
-Cuántas filas cambian de valor en tu cambio de esquema, medido con una consulta, y en qué rama del
-árbol de reversibilidad cae. Si tu migración no toca datos, dilo tal cual: también es una respuesta.
-
--
-
-## 2. Lo que la batería de pruebas no podía ver
-
-Una cosa que la batería de pruebas no podía ver. Si no encontraste ninguna, escribe qué buscaste y dónde.
-
--
-
-## 3. Tu duda
-
-De qué dudaste, o qué no pudiste comprobar.
-
--
+1. Llegaron 9 trazas distintas, todas de `/api/v1/tasks`; la más lenta fue `POST /api/v1/tasks` con 145,1 ms en el tramo Server, de los que el `insert flowsync.tasks` solo ocupó 4,4 ms: el resto es tiempo de la aplicación, probablemente arranque en frío, porque la segunda creación tardó 27,5 ms.
+2. Llegaron a la primera (los receptores del recolector escuchan en `0.0.0.0` desde el principio); al principio solo conté 3 porque el SDK exporta por lotes y conté antes de que se enviaran, y al repetir eran 9.
+3. El presupuesto es de 200 peticiones en 28 días con 20.000 supuestas, y me parece poco: son unas 7 al día, así que una caída de pocos minutos o un despliegue lento con el tráfico de un equipo trabajando lo agota.
