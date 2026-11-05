@@ -22,14 +22,32 @@ Borra el ejemplo de abajo cuando escribas el primero.
 
 ## Prompt 1
 
-**Modelo:** Opus 1M xHigh
+**Modelo:** Opus 5.5 Medium
 **Herramienta:** Claude Code
 
 ```
-Este es el ejemplo. Bórralo.
-
-El prompt va aquí dentro, entero y con sus saltos de línea,
-para que se sepa dónde empieza y dónde acaba.
+Añade a compose.yaml un servicio llamado observability, utilizando la imagen otel/opentelemetry-collector-contrib:0.162.0. Debe publicar los puertos 4317 y 4318 y tener un archivo de configuración con un receptor otlp para ambos protocolos y un exportador debug con verbosity: detailed en la tubería de trazas.
 ```
 
-**Qué salió:** (opcional, una línea) funcionó a la primera / tuve que insistir / me inventó una ruta que no existe.
+## Prompt 2
+
+**Modelo:** Opus 5.5 Medium
+**Herramienta:** Claude Code
+
+```
+Haz que el backend mande sus trazas al collector
+```
+
+
+## Prompt 3 
+
+**Modelo:** Opus 5.5 Medium
+**Herramienta:** Claude Code
+
+```
+Definir el SLO en docs/slo/api.md exclusivamente para las rutas de /api/v1/tasks con los valores: Indicador (Service Level Indicator, SLI): fracción de peticiones a esas rutas que responden con un código inferior a 500 y tardan menos de 500 milisegundos. Objetivo: al menos el 99 % de esas peticiones deben cumplir el indicador durante una ventana móvil de 28 días. Presupuesto de error: calcula cuántas peticiones pueden incumplir el objetivo, suponiendo 20.000 peticiones durante la ventana.
+
+
+Ademas agregar Una única alerta basada en un problema que percibe el usuario, no en una causa interna. Debe avisar cuando el ritmo de consumo del presupuesto indique que se agotará antes de terminar la ventana.
+
+```
