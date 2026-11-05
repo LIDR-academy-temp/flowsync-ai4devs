@@ -1,0 +1,10 @@
+# Lo que no entra en el contexto de `make image`: las dependencias y la
+# compilación se rehacen dentro de la imagen, no se traen de esta máquina.
+node_modules
+build
+tmp
+
+# Ningún .env, en ninguna carpeta (.env, .env.test, .env.example...): la
+# configuración entra al arrancar el contenedor, no al construir la imagen.
+**/.env
+**/.env.*
