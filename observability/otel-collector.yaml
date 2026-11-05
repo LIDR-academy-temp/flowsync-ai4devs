@@ -1,0 +1,25 @@
+# Configuración del servicio `observability` de compose.yaml
+# (otel/opentelemetry-collector-contrib). Recibe por OTLP y, de momento, solo
+# imprime las trazas en el log del contenedor con todo el detalle.
+#
+# El receptor escucha en 0.0.0.0 porque dentro del contenedor el valor por
+# defecto es localhost y no vería las conexiones que entran por los puertos
+# publicados.
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+exporters:
+  debug:
+    verbosity: detailed
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      exporters: [debug]

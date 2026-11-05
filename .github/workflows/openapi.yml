@@ -39,6 +39,11 @@ jobs:
       APP_KEY: clave-de-ci-sin-valor-secreto
       APP_URL: http://127.0.0.1:3333
       SESSION_DRIVER: memory
+      # Identidad del servicio para @adonisjs/otel; `start/env.ts` también las
+      # valida. En `test` el SDK no llega a arrancar.
+      APP_NAME: flowsync-api
+      APP_VERSION: 0.0.1
+      APP_ENV: development
     steps:
       - uses: actions/checkout@v7
 
