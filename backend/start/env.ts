@@ -24,4 +24,17 @@ export default await Env.create(new URL('../', import.meta.url), {
 
   // Session
   SESSION_DRIVER: Env.schema.enum(['cookie', 'memory', 'database'] as const),
+
+  // Base de datos (PostgreSQL en Docker, ver compose.yaml en la raíz)
+  DB_HOST: Env.schema.string(),
+  DB_PORT: Env.schema.number(),
+  DB_USER: Env.schema.string(),
+  DB_PASSWORD: Env.schema.secret(),
+  DB_DATABASE: Env.schema.string(),
+
+  // OpenTelemetry (config/otel.ts). Opcionales: sin endpoint no se exporta nada
+  APP_NAME: Env.schema.string.optional(),
+  APP_VERSION: Env.schema.string.optional(),
+  APP_ENV: Env.schema.enum.optional(['development', 'staging', 'production'] as const),
+  OTEL_EXPORTER_OTLP_ENDPOINT: Env.schema.string.optional({ format: 'url', tld: false }),
 })
