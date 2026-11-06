@@ -14,7 +14,7 @@ BACKEND  := backend
 FRONTEND := frontend
 
 .DEFAULT_GOAL := help
-.PHONY: test-unit test-e2e ui test-ui test-web hooks help setup start install env db-up db-down migrate seed db-readonly copia-produccion test clean
+.PHONY: test-unit test-e2e ui test-ui test-web hooks help setup start install env db-up db-down migrate seed db-readonly copia-produccion test clean image image-run image-stop ci-lint
 
 # La ayuda se genera a partir de los comentarios `## ...` de cada target, para
 # que no haya un segundo listado que mantener a mano y que pueda divergir.
@@ -152,6 +152,39 @@ test-web: ## Corre el recorrido de navegador (Playwright; necesita la aplicació
 hooks: ## Activa los hooks de git del repo (pre-push: make test-ui); una vez por clon
 	@git config core.hooksPath .githooks
 	@echo "✅ Hooks activados (core.hooksPath = .githooks). Antes de cada push correrá: make test-ui"
+
+# ---------------------------------------------------------------------------
+# imagen Docker de la API
+# ---------------------------------------------------------------------------
+
+IMAGE_PORT ?= 3334
+
+image: ## Construye la imagen de la API: flowsync-api:local
+	docker build -t flowsync-api:local $(BACKEND)
+
+# --add-host hace que host.docker.internal resuelva también en Linux.
+image-run: ## Arranca la imagen en segundo plano (IMAGE_PORT, por defecto 3334)
+	docker run -d --name flowsync-api-local \
+		--add-host host.docker.internal:host-gateway \
+		-p $(IMAGE_PORT):3333 \
+		--env-file $(BACKEND)/.env \
+		-e HOST=0.0.0.0 \
+		-e DB_HOST=host.docker.internal \
+		-e APP_URL=http://localhost:$(IMAGE_PORT) \
+		flowsync-api:local
+	@sleep 3
+	curl -s http://localhost:$(IMAGE_PORT)/
+
+image-stop: ## Para y borra el contenedor flowsync-api-local
+	docker stop flowsync-api-local
+	docker rm flowsync-api-local
+
+# ---------------------------------------------------------------------------
+# CI
+# ---------------------------------------------------------------------------
+
+ci-lint: ## Valida .github/workflows con actionlint (Docker, sin instalación local)
+	docker run --rm -v "$(CURDIR):/repo" -w /repo rhysd/actionlint:1.7.12 -color
 
 # ---------------------------------------------------------------------------
 # start

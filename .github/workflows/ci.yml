@@ -1,0 +1,188 @@
+name: CI
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+  push:
+    branches: [main]
+
+# Un push nuevo a la misma rama cancela la ejecución anterior. El evento
+# `closed` de un PR no cancela nada: es el que dispara `infra-apply`.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event.action != 'closed' }}
+
+# Sin permisos por defecto: cada trabajo declara los suyos.
+permissions: {}
+
+jobs:
+  test:
+    name: Tests del backend
+    if: github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    services:
+      db-test:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_USER: flowsync
+          POSTGRES_PASSWORD: flowsync
+          POSTGRES_DB: flowsync_test
+        ports:
+          - 54411:5432
+        # El trabajo no empieza hasta que el servicio responde como sano.
+        options: >-
+          --health-cmd "pg_isready -U flowsync -d flowsync_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      # Lo que exige `backend/start/env.ts` y no está en `backend/.env.test`
+      # (que ya trae SESSION_DRIVER y DB_*). Ninguno es un secreto: `APP_KEY`
+      # existe solo para que la validación al arrancar pase.
+      NODE_ENV: test
+      PORT: 3333
+      HOST: 127.0.0.1
+      LOG_LEVEL: silent
+      APP_KEY: clave-de-ci-sin-valor-secreto
+      APP_URL: http://127.0.0.1:3333
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Instalar dependencias del backend
+        run: npm ci
+        working-directory: backend
+
+      # El mismo comando que en local. `-o db-up` da por hecho el objetivo que
+      # levanta las bases con `docker compose`: aquí la base de pruebas ya es el
+      # servicio de arriba, y compose chocaría con él en el puerto 54411.
+      - name: Correr los tests
+        shell: bash
+        run: make -o db-up test 2>&1 | tee "$RUNNER_TEMP/test.log"
+
+      - name: Publicar el recuento en el resumen
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo '## Tests del backend'
+            echo
+            echo '```text'
+            sed 's/\x1b\[[0-9;]*m//g' "$RUNNER_TEMP/test.log" | grep -E '^\s*(Tests|Duration)\s' || echo 'Sin recuento: la suite no llegó a terminar.'
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  image:
+    name: Imagen Docker de la API
+    if: github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      # Alcance: este trabajo afirma que la imagen SE CONSTRUYE desde cero, nada
+      # más. No afirma que arranque, que conecte con la base ni que responda.
+      - name: Construir la imagen
+        run: make image
+
+  lint-workflows:
+    name: Lint de los workflows
+    if: github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Validar con actionlint
+        run: make ci-lint
+
+  infra-plan:
+    name: Plan de infraestructura (Railway)
+    # Solo PRs del mismo repositorio: un fork no recibe los secretos.
+    if: >-
+      github.event_name == 'pull_request'
+      && github.event.action != 'closed'
+      && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: write
+      actions: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+
+      # `paths:` solo existe a nivel de workflow, y ahí filtraría también a
+      # `test`, `image` y `lint-workflows`. Se comprueba aquí.
+      - name: Detectar cambios en .railway/
+        id: railway
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          if git diff --quiet "$BASE_SHA...$HEAD_SHA" -- .railway; then
+            echo 'changed=false' >> "$GITHUB_OUTPUT"
+          else
+            echo 'changed=true' >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Plan de Railway
+        if: steps.railway.outputs.changed == 'true'
+        uses: railwayapp/config@9e17d413dbe219f19d62538d9c06b5dbb5e9abf8 # v1.2.0
+        with:
+          command: plan
+          railway-token: ${{ secrets.RAILWAY_TOKEN }}
+
+  infra-apply:
+    name: Aplicar infraestructura (Railway)
+    # Solo cuando el PR se fusiona, y solo si es del mismo repositorio.
+    if: >-
+      github.event_name == 'pull_request'
+      && github.event.action == 'closed'
+      && github.event.pull_request.merged == true
+      && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
+          fetch-depth: 0
+
+      # Sin cambios en .railway/ no hubo plan que aplicar.
+      - name: Detectar cambios en .railway/
+        id: railway
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          if git diff --quiet "$BASE_SHA...$HEAD_SHA" -- .railway; then
+            echo 'changed=false' >> "$GITHUB_OUTPUT"
+          else
+            echo 'changed=true' >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Aplicar el plan de Railway
+        if: steps.railway.outputs.changed == 'true'
+        uses: railwayapp/config@9e17d413dbe219f19d62538d9c06b5dbb5e9abf8 # v1.2.0
+        with:
+          command: apply
+          railway-token: ${{ secrets.RAILWAY_TOKEN }}
