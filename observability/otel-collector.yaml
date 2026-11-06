@@ -1,0 +1,25 @@
+# Colector OpenTelemetry de desarrollo: recibe OTLP del backend y lo imprime
+# en su log (exportador `debug`, verbosity detailed). No reenvía a ningún sitio.
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+exporters:
+  debug:
+    verbosity: detailed
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      exporters: [debug]
+    metrics:
+      receivers: [otlp]
+      exporters: [debug]
+    logs:
+      receivers: [otlp]
+      exporters: [debug]

@@ -14,7 +14,7 @@ BACKEND  := backend
 FRONTEND := frontend
 
 .DEFAULT_GOAL := help
-.PHONY: test-unit test-e2e ui test-ui test-web hooks help setup start install env db-up db-down migrate seed db-readonly copia-produccion test image image-run image-stop ci-lint clean
+.PHONY: obs-up obs-down test-unit test-e2e ui test-ui test-web hooks help setup start install env db-up db-down migrate seed db-readonly copia-produccion test image image-run image-stop ci-lint clean
 
 # La ayuda se genera a partir de los comentarios `## ...` de cada target, para
 # que no haya un segundo listado que mantener a mano y que pueda divergir.
@@ -70,6 +70,13 @@ env:
 db-up: ## Levanta las bases de desarrollo (54410) y de pruebas (54411)
 	@echo "🐘 Levantando PostgreSQL (db y db-test)..."
 	@docker compose up -d --wait db db-test
+
+obs-up: ## Levanta el colector OpenTelemetry (OTLP 4317/4318, log con docker compose logs -f observability)
+	@echo "🔭 Levantando el colector (observability)..."
+	@docker compose up -d observability
+
+obs-down: ## Para el colector OpenTelemetry
+	@docker compose stop observability
 
 # Sin `-v`: el volumen de desarrollo se conserva. La de pruebas es tmpfs y se vacía sola.
 db-down: ## Para las bases (la de desarrollo conserva sus datos)

@@ -31,4 +31,11 @@ export default await Env.create(new URL('../', import.meta.url), {
   DB_USER: Env.schema.string(),
   DB_PASSWORD: Env.schema.secret(),
   DB_DATABASE: Env.schema.string(),
+
+  // Observabilidad (OpenTelemetry). Con valor por defecto para que CI y los
+  // clones sin .env sigan arrancando. El exportador OTLP lo configura el SDK
+  // con las variables estándar OTEL_* (ver .env.example), no este schema.
+  APP_NAME: Env.schema.string.optional(),
+  APP_VERSION: Env.schema.string.optional(),
+  APP_ENV: Env.schema.enum.optional(['development', 'staging', 'production'] as const),
 })

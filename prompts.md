@@ -16,20 +16,70 @@ distinto, y sin este archivo no se distinguen.
 - Incluye también los que **no funcionaron**. Suelen ser los más útiles de leer.
 - `Modelo` y `Herramienta` en todos. Si cambiaste de una a otra a mitad, se nota aquí.
 
-Borra el ejemplo de abajo cuando escribas el primero.
-
 ---
 
 ## Prompt 1
 
-**Modelo:** Opus 1M xHigh
+**Modelo:** Sonnet 5.5
 **Herramienta:** Claude Code
 
 ```
-Este es el ejemplo. Bórralo.
-
-El prompt va aquí dentro, entero y con sus saltos de línea,
-para que se sepa dónde empieza y dónde acaba.
+Instrumenta el backend con el paquete oficial, añade el servicio observability en compose.yaml con los puertos 4317/4318 y exportador debug (verbosity: detailed), y actualiza las variables de entorno necesarias sin tocar el frontend.
 ```
 
-**Qué salió:** (opcional, una línea) funcionó a la primera / tuve que insistir / me inventó una ruta que no existe.
+**Qué salió:** la skill `backend-feature` paró con un plan por capas y esperó aprobación antes de tocar nada.
+
+## Prompt 2
+
+**Modelo:** Sonnet 5.5
+**Herramienta:** Claude Code
+
+```
+Sí y también crea el target `make obs-up`
+```
+
+**Qué salió:** instrumentación con `@adonisjs/otel`, servicio `observability` y `make obs-up`. Hubo que corregir las variables `APP_*` obligatorias que dejó el instalador, un `.env` sin salto de línea final y la imagen del colector 0.116.1, que daba `SIGSEGV`.
+
+## Prompt 3
+
+**Modelo:** Sonnet 5.5
+**Herramienta:** Claude Code
+
+```
+Sí
+```
+
+**Qué salió:** el hook `datos-que-no-salen.sh` bloqueó el primer commit por un correo en `package-lock.json`. Se sustituyó por uno de `example.com` y el commit `360040d` salió al segundo intento.
+
+## Prompt 4
+
+**Modelo:** Sonnet 5.5
+**Herramienta:** Claude Code
+
+```
+Levanta el backend, frontend y recolector y base de datos si es necesario
+```
+
+**Qué salió:** todo arriba, pero no pude reiniciar el backend que ya ocupaba el puerto 3333: el sistema denegó el `kill`.
+
+## Prompt 5
+
+**Modelo:** Sonnet 5.5
+**Herramienta:** Claude Code
+
+```
+Escribe el SLO en docs/slo/api.md incluyendo: SLI como fracción (ruta, código, duración), objetivo del 99% a 28 días, presupuesto de error para 20.000 peticiones (avisando que es estimado), una única alerta por consumo anticipado de presupuesto, y la exclusión de rutas ajenas a /api/v1/tasks como login y registro.
+```
+
+**Qué salió:** funcionó a la primera. El umbral de 500 ms es una elección mía, no un dato del proyecto, y el documento lo marca como propuesta.
+
+## Prompt 6
+
+**Modelo:** Sonnet 5.5
+**Herramienta:** Claude Code
+
+```
+Sí
+```
+
+**Qué salió:** commit `71aa850` a la primera.
