@@ -236,7 +236,7 @@ image-stop: ## Para y borra el contenedor de la imagen
 # Solo el collector: no va en `db-up` ni en `setup`, la aplicación arranca sin él
 # (las trazas que no llegan a ningún sitio se pierden sin error). Lo que recibe
 # sale en `docker compose logs -f observability`.
-otel-up: ## Levanta el OpenTelemetry Collector local (OTLP en 4317 gRPC y 4318 HTTP)
+otel-up: ## Levanta el OpenTelemetry Collector local (OTLP en 14317 gRPC y 14318 HTTP)
 	@docker compose up -d observability
 
 otel-down: ## Para el OpenTelemetry Collector local

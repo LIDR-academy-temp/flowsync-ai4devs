@@ -56,8 +56,8 @@ services:
     volumes:
       - ./otel-collector.yaml:/etc/otelcol-contrib/config.yaml:ro
     ports:
-      - '4317:4317'
-      - '4318:4318'
+      - '14317:4317'
+      - '14318:4318'
 
 volumes:
   db-data:
