@@ -1,5 +1,6 @@
 # OpenTelemetry Collector local de FlowSync (servicio `observability` de
-# compose.yaml). Recibe trazas por OTLP y las escribe en su propio log.
+# compose.yaml). Recibe trazas por OTLP, las escribe en su propio log (debug)
+# y las reenvía a Grafana/Tempo (servicio `lgtm`).
 receivers:
   otlp:
     protocols:
@@ -11,9 +12,11 @@ receivers:
 exporters:
   debug:
     verbosity: detailed
+  otlp_http/lgtm:
+    endpoint: http://lgtm:4318
 
 service:
   pipelines:
     traces:
       receivers: [otlp]
-      exporters: [debug]
+      exporters: [debug, otlp_http/lgtm]

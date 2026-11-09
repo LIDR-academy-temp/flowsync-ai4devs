@@ -1,0 +1,13 @@
+# Proveedor de dashboards de FlowSync para el Grafana de `lgtm` (compose.yaml).
+# Grafana carga al arrancar cada JSON de la carpeta montada y lo relee cada 30 s:
+# para cambiar un dashboard se edita el JSON del repo, no la interfaz.
+apiVersion: 1
+
+providers:
+  - name: FlowSync
+    folder: FlowSync
+    type: file
+    allowUiUpdates: false
+    updateIntervalSeconds: 30
+    options:
+      path: /otel-lgtm/flowsync-dashboards

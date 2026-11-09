@@ -233,14 +233,15 @@ image-stop: ## Para y borra el contenedor de la imagen
 # observabilidad (servicio `observability` de compose.yaml)
 # ---------------------------------------------------------------------------
 
-# Solo el collector: no va en `db-up` ni en `setup`, la aplicación arranca sin él
-# (las trazas que no llegan a ningún sitio se pierden sin error). Lo que recibe
-# sale en `docker compose logs -f observability`.
-otel-up: ## Levanta el OpenTelemetry Collector local (OTLP en 14317 gRPC y 14318 HTTP)
+# El collector y Grafana (`lgtm`, que arranca por el depends_on): no van en
+# `db-up` ni en `setup`, la aplicación arranca sin ellos (las trazas que no
+# llegan a ningún sitio se pierden sin error). Lo que recibe el collector sale en
+# `docker compose logs -f observability`; las trazas, en Grafana > Explore > Tempo.
+otel-up: ## Levanta el Collector (OTLP en 14317 gRPC y 14318 HTTP) y Grafana (http://localhost:3000)
 	@docker compose up -d observability
 
-otel-down: ## Para el OpenTelemetry Collector local
-	@docker compose stop observability
+otel-down: ## Para el OpenTelemetry Collector local y Grafana
+	@docker compose stop observability lgtm
 
 # ---------------------------------------------------------------------------
 # pipeline (.github/workflows/)

@@ -58,6 +58,21 @@ services:
     ports:
       - '14317:4317'
       - '14318:4318'
+    depends_on:
+      - lgtm
+
+  # Grafana con Tempo (trazas), Loki y Prometheus en un solo contenedor, solo
+  # para desarrollo. El collector le reenvía las trazas por OTLP dentro de la red
+  # de Compose (lgtm:4318), así que sus puertos OTLP no se publican en el host.
+  # Grafana en http://localhost:3000, solo loopback; usuario admin, contraseña admin.
+  lgtm:
+    image: grafana/otel-lgtm:0.40.0
+    ports:
+      - '127.0.0.1:3000:3000'
+    volumes:
+      # Dashboards de FlowSync, versionados en el repo (observability/grafana/).
+      - ./observability/grafana/dashboards.yaml:/otel-lgtm/grafana/conf/provisioning/dashboards/flowsync.yaml:ro
+      - ./observability/grafana/dashboards:/otel-lgtm/flowsync-dashboards:ro
 
 volumes:
   db-data:
