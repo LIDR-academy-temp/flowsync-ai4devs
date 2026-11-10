@@ -1,0 +1,106 @@
+# Escaneo de seguridad del repositorio con Trivy: secretos y vulnerabilidades
+# conocidas de las dependencias (los package-lock.json de backend/, frontend/ y
+# .railway/). Un solo trabajo, tres pasos, en este orden:
+#
+#   1. secretos         BLOQUEA a cualquier severidad: un secreto no tiene
+#                       «arreglo disponible», se quita y se rota.
+#   2. vuln CRITICAL    BLOQUEA, solo si hay versión arreglada.
+#   3. vuln HIGH,MEDIUM INFORMA en el resumen de la ejecución, no bloquea.
+#
+# Son tres invocaciones y no una porque `severity` filtra a todos los escáneres
+# por igual: con una sola, o los secretos de severidad baja no bloquearían, o
+# bloquearía todo lo HIGH.
+#
+# Por qué el umbral empieza en CRITICAL con arreglo y no en HIGH: la primera
+# ejecución sobre un proyecto con historia devuelve decenas de hallazgos, y un
+# guardarraíl que bloquea a todo el mundo el primer día se apaga el segundo.
+# Se empieza por lo que es grave y tiene salida (subir una versión), y el resto
+# se ve en el resumen sin parar a nadie.
+#
+# Cómo se sube el listón: cuando el paso 3 salga limpio de HIGH durante unas
+# semanas, se añade HIGH al `severity` del paso 2 (`CRITICAL,HIGH`) y se deja
+# MEDIUM en el 3. Después, lo mismo con MEDIUM. Y cuando los bloqueos estén
+# limpios, se quita `ignore-unfixed` para ver también lo que aún no tiene
+# arreglo. Un falso positivo o un riesgo aceptado se apunta en `.trivyignore`,
+# con el CVE y el porqué, en vez de bajar el umbral.
+#
+# Sin SARIF ni pestaña de seguridad: en un repositorio privado sin licencia de
+# pago, subirlo falla.
+name: Seguridad
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# Solo leer el repositorio. No comenta, no sube informes y no escribe nada.
+permissions:
+  contents: read
+
+# En un pull request, un push nuevo deja obsoleta la ejecución anterior. En
+# `main` no se cancela nada y cada SHA tiene su propio grupo.
+concurrency:
+  group: seguridad-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  trivy:
+    name: secretos y dependencias (Trivy)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Ningún paso vuelve a hablar con git: el token no se queda en el
+          # directorio de trabajo, donde el escáner de secretos lo vería.
+          persist-credentials: false
+
+      # 1. BLOQUEA. Sin `severity`: cualquier secreto, del nivel que sea.
+      - name: Secretos (bloquea)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: secret
+          exit-code: 1
+
+      # 2. BLOQUEA. Solo CRITICAL y solo si existe una versión que lo arregla.
+      - name: Vulnerabilidades críticas con arreglo (bloquea)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln
+          severity: CRITICAL
+          ignore-unfixed: true
+          exit-code: 1
+
+      # 3. INFORMA. Corre también cuando un bloqueo de arriba ha fallado, para
+      # que la tabla esté en el resumen justo cuando alguien va a mirarlo.
+      - name: Vulnerabilidades altas y medias (informa)
+        if: ${{ !cancelled() }}
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln
+          severity: HIGH,MEDIUM
+          exit-code: 0
+          format: table
+          output: trivy-high-medium.txt
+
+      - name: Tabla al resumen de la ejecución
+        if: ${{ !cancelled() }}
+        shell: bash
+        run: |
+          {
+            echo '## Trivy: vulnerabilidades HIGH y MEDIUM (no bloquean)'
+            echo
+            if [[ -s trivy-high-medium.txt ]]; then
+              echo '```'
+              cat trivy-high-medium.txt
+              echo '```'
+            else
+              echo 'Sin hallazgos.'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
