@@ -1,0 +1,9 @@
+# Configuración de Trivy para este repositorio. Trivy la lee sola cuando se
+# lanza desde la raíz (`trivy fs ... .`), así que el comando se escribe tal cual.
+#
+# `backups/` se salta siempre: lleva la copia de producción con datos personales
+# reales (ver CLAUDE.md e INC-0412) y ningún escáner tiene que recorrerla. En CI
+# no existe, porque no está en git.
+scan:
+  skip-dirs:
+    - backups

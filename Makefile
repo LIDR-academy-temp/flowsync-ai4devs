@@ -14,7 +14,7 @@ BACKEND  := backend
 FRONTEND := frontend
 
 .DEFAULT_GOAL := help
-.PHONY: test-unit test-e2e ui test-ui test-web hooks help setup start install env db-up db-down migrate seed db-readonly copia-produccion test image image-run image-stop ci-lint otel-up otel-down clean
+.PHONY: test-unit test-e2e ui test-ui test-web hooks help setup start install env db-up db-down migrate seed db-readonly copia-produccion test image image-run image-stop ci-lint scan scan-secrets otel-up otel-down clean
 
 # La ayuda se genera a partir de los comentarios `## ...` de cada target, para
 # que no haya un segundo listado que mantener a mano y que pueda divergir.
@@ -253,6 +253,19 @@ otel-down: ## Para el OpenTelemetry Collector local y Grafana
 # todo .github/workflows/ (con shellcheck sobre cada `run:`, que trae la imagen).
 ci-lint: ## Valida los workflows de .github/workflows/ con actionlint (Docker)
 	@docker run --rm -v "$(CURDIR)":/repo -w /repo rhysd/actionlint:1.7.12 -color
+
+# Trivy en Docker, sin instalarlo: los mismos escáneres que .github/workflows/seguridad.yml.
+# El repo se monta en solo lectura y la base de vulnerabilidades queda en el
+# volumen trivy-cache para no descargarla cada vez. `backups/` se salta: lleva la
+# copia de producción con datos personales reales (en CI no existe, no está en git).
+TRIVY := docker run --rm -v "$(CURDIR)":/repo:ro -v trivy-cache:/root/.cache -w /repo \
+	aquasec/trivy:0.76.2 fs --skip-dirs backups
+
+scan: ## Trivy: secretos y vulnerabilidades CRITICAL/HIGH (sale con 1 si hay algo)
+	@$(TRIVY) --scanners vuln,secret --severity CRITICAL,HIGH --exit-code 1 .
+
+scan-secrets: ## Trivy: solo secretos, como el paso que bloquea en seguridad.yml
+	@$(TRIVY) --scanners secret --exit-code 1 .
 
 # ---------------------------------------------------------------------------
 # clean
