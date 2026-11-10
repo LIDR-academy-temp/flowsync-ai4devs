@@ -14,7 +14,7 @@ BACKEND  := backend
 FRONTEND := frontend
 
 .DEFAULT_GOAL := help
-.PHONY: test-unit test-e2e ui test-ui test-web hooks help setup start install env db-up db-down migrate seed db-readonly copia-produccion test image image-run image-stop ci-lint clean
+.PHONY: test-unit test-e2e ui test-ui test-web hooks help setup start install env db-up db-down migrate seed db-readonly copia-produccion test image image-run image-stop ci-lint scan scan-secrets otel-up otel-down clean
 
 # La ayuda se genera a partir de los comentarios `## ...` de cada target, para
 # que no haya un segundo listado que mantener a mano y que pueda divergir.
@@ -230,6 +230,20 @@ image-stop: ## Para y borra el contenedor de la imagen
 	@docker rm $(IMAGE_CONTAINER)
 
 # ---------------------------------------------------------------------------
+# observabilidad (servicio `observability` de compose.yaml)
+# ---------------------------------------------------------------------------
+
+# El collector y Grafana (`lgtm`, que arranca por el depends_on): no van en
+# `db-up` ni en `setup`, la aplicación arranca sin ellos (las trazas que no
+# llegan a ningún sitio se pierden sin error). Lo que recibe el collector sale en
+# `docker compose logs -f observability`; las trazas, en Grafana > Explore > Tempo.
+otel-up: ## Levanta el Collector (OTLP en 14317 gRPC y 14318 HTTP) y Grafana (http://localhost:3000)
+	@docker compose up -d observability
+
+otel-down: ## Para el OpenTelemetry Collector local y Grafana
+	@docker compose stop observability lgtm
+
+# ---------------------------------------------------------------------------
 # pipeline (.github/workflows/)
 # ---------------------------------------------------------------------------
 
@@ -239,6 +253,19 @@ image-stop: ## Para y borra el contenedor de la imagen
 # todo .github/workflows/ (con shellcheck sobre cada `run:`, que trae la imagen).
 ci-lint: ## Valida los workflows de .github/workflows/ con actionlint (Docker)
 	@docker run --rm -v "$(CURDIR)":/repo -w /repo rhysd/actionlint:1.7.12 -color
+
+# Trivy en Docker, sin instalarlo: los mismos escáneres que .github/workflows/seguridad.yml.
+# El repo se monta en solo lectura y la base de vulnerabilidades queda en el
+# volumen trivy-cache para no descargarla cada vez. `backups/` se salta: lleva la
+# copia de producción con datos personales reales (en CI no existe, no está en git).
+TRIVY := docker run --rm -v "$(CURDIR)":/repo:ro -v trivy-cache:/root/.cache -w /repo \
+	aquasec/trivy:0.76.2 fs --skip-dirs backups
+
+scan: ## Trivy: secretos y vulnerabilidades CRITICAL/HIGH (sale con 1 si hay algo)
+	@$(TRIVY) --scanners vuln,secret --severity CRITICAL,HIGH --exit-code 1 .
+
+scan-secrets: ## Trivy: solo secretos, como el paso que bloquea en seguridad.yml
+	@$(TRIVY) --scanners secret --exit-code 1 .
 
 # ---------------------------------------------------------------------------
 # clean

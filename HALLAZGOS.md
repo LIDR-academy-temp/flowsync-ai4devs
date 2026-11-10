@@ -1,26 +1,3 @@
-# Hallazgos
-
-Aquí van **las tres líneas** del ejercicio, una por cada punto de abajo. Es lo único que hay que
-traer hecho: un cambio de motor a medias con estas tres líneas escritas vale más que lo contrario,
-porque lo que se discute en el directo es dónde te chocaste.
-
-Escribe **una sola línea por punto**, con tus palabras y con lo que mediste, no con lo que suponías.
-
-## 1. Las filas que cambian y la rama
-
-Cuántas filas cambian de valor en tu cambio de esquema, medido con una consulta, y en qué rama del
-árbol de reversibilidad cae. Si tu migración no toca datos, dilo tal cual: también es una respuesta.
-
--
-
-## 2. Lo que la batería de pruebas no podía ver
-
-Una cosa que la batería de pruebas no podía ver. Si no encontraste ninguna, escribe qué buscaste y dónde.
-
--
-
-## 3. Tu duda
-
-De qué dudaste, o qué no pudiste comprobar.
-
--
+1. Se observaron 18 trazas únicas; en la traza 055633616effe95711adb8f41dd3f6c5, el span servidor GET /api/v1/tasks tardó aproximadamente 637.56 ms y el span de base de datos más lento fue select flowsync.auth_access_tokens, con aproximadamente 417.94 ms.
+2. Las trazas llegaron sin corregir la configuración: fue necesario reiniciar la aplicación instrumentada, generar tráfico y esperar la exportación por lotes; el conteo inicial de cero se hizo antes de generar ese tráfico.
+3. Para 20 000 solicitudes, el presupuesto de error es de 200; me parece un punto inicial razonable, pero debe revisarse con el volumen y comportamiento reales de producción.
