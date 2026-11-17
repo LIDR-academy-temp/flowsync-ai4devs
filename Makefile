@@ -14,7 +14,7 @@ BACKEND  := backend
 FRONTEND := frontend
 
 .DEFAULT_GOAL := help
-.PHONY: test-unit test-e2e ui test-ui test-web hooks help setup start install env db-up db-down migrate seed db-readonly copia-produccion test clean
+.PHONY: test-unit test-e2e ui test-ui test-web hooks help setup start install env db-up db-down migrate seed db-readonly copia-produccion test clean image image-run image-stop ci-lint
 
 # La ayuda se genera a partir de los comentarios `## ...` de cada target, para
 # que no haya un segundo listado que mantener a mano y que pueda divergir.
@@ -67,9 +67,18 @@ env:
 
 # `--wait` bloquea hasta que los dos healthchecks pasan: la imagen crea la base
 # la primera vez y no acepta conexiones mientras tanto.
+#
+# En GitHub Actions (`GITHUB_ACTIONS` definida; no `CI`, que otros entornos también
+# ponen) no se levanta nada: el workflow ya trae su PostgreSQL como contenedor de
+# servicio publicado en el 54411, y `db-test` de compose intentaría ocupar ese mismo
+# puerto. Así `make test` es el mismo comando en el portátil y en CI.
 db-up: ## Levanta las bases de desarrollo (54410) y de pruebas (54411)
-	@echo "🐘 Levantando PostgreSQL (db y db-test)..."
-	@docker compose up -d --wait db db-test
+	@if [ -n "$$GITHUB_ACTIONS" ]; then \
+		echo "🐘 CI: la base de pruebas la aporta el servicio del workflow; no se levanta compose."; \
+	else \
+		echo "🐘 Levantando PostgreSQL (db y db-test)..."; \
+		docker compose up -d --wait db db-test; \
+	fi
 
 # Sin `-v`: el volumen de desarrollo se conserva. La de pruebas es tmpfs y se vacía sola.
 db-down: ## Para las bases (la de desarrollo conserva sus datos)
@@ -152,6 +161,45 @@ test-web: ## Corre el recorrido de navegador (Playwright; necesita la aplicació
 hooks: ## Activa los hooks de git del repo (pre-push: make test-ui); una vez por clon
 	@git config core.hooksPath .githooks
 	@echo "✅ Hooks activados (core.hooksPath = .githooks). Antes de cada push correrá: make test-ui"
+
+# ---------------------------------------------------------------------------
+# imagen de la API (backend/Dockerfile) y validación del pipeline
+# ---------------------------------------------------------------------------
+
+IMAGE      := flowsync-api:local
+IMAGE_NAME := flowsync-api-local
+IMAGE_PORT ?= 3334
+
+image: ## Construye la imagen de la API (flowsync-api:local)
+	@docker build -t $(IMAGE) $(BACKEND)
+
+# Arranca la imagen contra la base de desarrollo del host. Encima de backend/.env
+# se fuerzan tres valores: HOST=0.0.0.0 y DB_HOST=host.docker.internal porque dentro
+# del contenedor `localhost` es el propio contenedor, y APP_URL porque Docker no
+# expande el ${HOST}:${PORT} que usa ese fichero. `--add-host` hace que
+# host.docker.internal también exista en Linux (en Docker Desktop ya existe).
+image-run: ## Arranca la imagen en segundo plano (IMAGE_PORT, por defecto 3334) y le pide la raíz
+	@docker run -d --name $(IMAGE_NAME) \
+		-p $(IMAGE_PORT):3333 \
+		--add-host=host.docker.internal:host-gateway \
+		--env-file $(BACKEND)/.env \
+		-e HOST=0.0.0.0 \
+		-e DB_HOST=host.docker.internal \
+		-e APP_URL=http://localhost:$(IMAGE_PORT) \
+		$(IMAGE)
+	@sleep 3
+	@curl -s http://localhost:$(IMAGE_PORT)/
+	@echo ""
+
+image-stop: ## Para y borra el contenedor de la imagen
+	@docker rm -f $(IMAGE_NAME)
+
+# actionlint dentro de su imagen oficial: no se instala nada. Sin argumentos
+# valida todos los workflows de .github/workflows/. MSYS_NO_PATHCONV=1: en Git Bash
+# de Windows, sin él, `-w /repo` se reescribe a `C:/Program Files/Git/repo` y Docker
+# lo rechaza; en Linux, macOS y WSL no hace nada.
+ci-lint: ## Valida los workflows con actionlint (imagen de Docker, sin instalar nada)
+	@MSYS_NO_PATHCONV=1 docker run --rm -v "$(CURDIR):/repo" -w /repo rhysd/actionlint:1.7.12 -color
 
 # ---------------------------------------------------------------------------
 # start
