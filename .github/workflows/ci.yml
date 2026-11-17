@@ -78,9 +78,15 @@ jobs:
         working-directory: backend
         run: npm ci
 
-      # Exactamente el comando del portátil. Con `CI` definida, `make db-up` no
-      # levanta compose (ver el Makefile): la base es el servicio de arriba.
+      # Exactamente el comando del portátil. Dentro de GitHub Actions, `make db-up`
+      # no levanta compose (ver el Makefile): la base es el servicio de arriba.
+      # `make test` pasa también por `migrate`, que migra «la de desarrollo» sin
+      # NODE_ENV=test: solo funciona porque el `env:` del trabajo lo fija, así que
+      # ambas migraciones caen sobre la misma base de pruebas.
+      # `shell: bash` es obligatorio aquí: el shell por defecto (`bash -e`) no trae
+      # `pipefail`, y sin él `| tee` devolvería siempre 0 y un test rojo saldría verde.
       - name: make test
+        shell: bash
         run: make test 2>&1 | tee "$RUNNER_TEMP/test.log"
 
       # El recuento va al resumen de la ejecución, no a un `echo` perdido en el

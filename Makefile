@@ -68,12 +68,12 @@ env:
 # `--wait` bloquea hasta que los dos healthchecks pasan: la imagen crea la base
 # la primera vez y no acepta conexiones mientras tanto.
 #
-# En GitHub Actions (`CI` definida) no se levanta nada: el workflow ya trae su
-# PostgreSQL como contenedor de servicio publicado en el 54411, y `db-test` de
-# compose intentaría ocupar ese mismo puerto. Así `make test` es el mismo comando
-# en el portátil y en CI.
+# En GitHub Actions (`GITHUB_ACTIONS` definida; no `CI`, que otros entornos también
+# ponen) no se levanta nada: el workflow ya trae su PostgreSQL como contenedor de
+# servicio publicado en el 54411, y `db-test` de compose intentaría ocupar ese mismo
+# puerto. Así `make test` es el mismo comando en el portátil y en CI.
 db-up: ## Levanta las bases de desarrollo (54410) y de pruebas (54411)
-	@if [ -n "$$CI" ]; then \
+	@if [ -n "$$GITHUB_ACTIONS" ]; then \
 		echo "🐘 CI: la base de pruebas la aporta el servicio del workflow; no se levanta compose."; \
 	else \
 		echo "🐘 Levantando PostgreSQL (db y db-test)..."; \
