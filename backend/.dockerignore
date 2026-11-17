@@ -1,0 +1,14 @@
+# Fuera del contexto de construcción: lo que se instala o se genera dentro de la
+# imagen, y todo lo que pueda llevar secretos.
+node_modules
+build
+tmp
+
+# Ningún .env viaja a la imagen: la configuración entra al arrancar.
+.env
+.env.*
+**/.env
+**/.env.*
+
+.git
+npm-debug.log*

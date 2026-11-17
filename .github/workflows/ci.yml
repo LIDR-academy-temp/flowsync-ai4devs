@@ -1,0 +1,217 @@
+name: CI
+
+# Un trabajo por pregunta:
+#   test            ¿la suite del backend pasa en una máquina limpia?
+#   image           ¿el artefacto se puede fabricar desde cero?
+#   lint-workflows  ¿los propios archivos del pipeline son válidos?
+#   infra-plan      ¿qué cambiaría en la infraestructura si esto se fusiona?
+#   infra-apply     lo mismo, aplicado, cuando el pull request se fusiona.
+#
+# `closed` está entre los tipos porque `infra-apply` necesita saber que el pull
+# request se fusionó; los tres primeros trabajos se saltan ese evento.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+  push:
+    branches: [main]
+
+# Sin permisos por defecto: cada trabajo declara los suyos. Nunca `write-all`.
+permissions: {}
+
+# Si llega otro push a la misma rama, la ejecución anterior se cancela. Nunca la
+# del cierre de un pull request: cancelar un `apply` a medias dejaría la
+# infraestructura a medio aplicar.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event.action != 'closed' }}
+
+jobs:
+  test:
+    name: test
+    if: github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    services:
+      # La misma imagen que producción y los mismos datos que `compose.yaml` y
+      # `backend/.env.test`: puerto 54411, usuario, contraseña y base de pruebas.
+      # No son secretos: son los de una base efímera que muere con el trabajo.
+      postgres:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_USER: flowsync
+          POSTGRES_PASSWORD: flowsync
+          POSTGRES_DB: flowsync_test
+        ports:
+          - 54411:5432
+        # Por TCP (-h 127.0.0.1), como el healthcheck de compose.yaml: en el
+        # primer arranque la imagen levanta un servidor temporal que solo
+        # escucha en el socket Unix. El trabajo no empieza hasta que está sano.
+        options: >-
+          --health-cmd "pg_isready -h 127.0.0.1 -U flowsync -d flowsync_test"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 30
+    env:
+      # Lo que `backend/start/env.ts` exige y `.env.test` no trae (como en
+      # openapi.yml). `.env.test` pone SESSION_DRIVER y las DB_*. Ninguno es un
+      # secreto: `APP_KEY` solo existe para que la validación pase.
+      NODE_ENV: test
+      PORT: 3333
+      HOST: 127.0.0.1
+      LOG_LEVEL: silent
+      APP_KEY: clave-de-ci-sin-valor-secreto
+      APP_URL: http://127.0.0.1:3333
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Instalar dependencias del backend
+        working-directory: backend
+        run: npm ci
+
+      # Exactamente el comando del portátil. Con `CI` definida, `make db-up` no
+      # levanta compose (ver el Makefile): la base es el servicio de arriba.
+      - name: make test
+        run: make test 2>&1 | tee "$RUNNER_TEMP/test.log"
+
+      # El recuento va al resumen de la ejecución, no a un `echo` perdido en el
+      # registro. `if: always()` para que también salga cuando hay fallos.
+      - name: Publicar el recuento de tests
+        if: always()
+        run: |
+          {
+            echo "### Tests del backend"
+            echo '```'
+            sed 's/\x1b\[[0-9;]*m//g' "$RUNNER_TEMP/test.log" | grep -E '^\s*(Tests|Time)\s' || echo "La suite no llegó a imprimir su resumen."
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  image:
+    name: image
+    if: github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # LÍMITE: este trabajo afirma que la imagen SE CONSTRUYE desde cero, no que
+      # ARRANQUE. No ejecuta el contenedor: no hay base de datos ni variables de
+      # entorno aquí, y sin ellas la aplicación se niega a arrancar por diseño.
+      - name: make image
+        run: make image
+
+  lint-workflows:
+    name: lint-workflows
+    if: github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: make ci-lint
+        run: make ci-lint
+
+  infra-plan:
+    name: infra-plan
+    # Solo en pull requests del propio repositorio: uno desde un fork no recibe
+    # los secretos y el trabajo fallaría sin explicar por qué.
+    if: >-
+      github.event_name == 'pull_request'
+      && github.event.action != 'closed'
+      && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      # Para publicar el plan como comentario del pull request.
+      pull-requests: write
+      # La acción sube el plan como artefacto y `infra-apply` lo descarga.
+      actions: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # "Solo si toca .railway/**": un filtro `paths` en `on:` también dejaría
+      # sin correr a `test`, `image` y `lint-workflows` en el resto de cambios,
+      # así que el filtro se hace aquí, sobre los ficheros del pull request.
+      - name: ¿Toca .railway/?
+        id: railway
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          files=$(gh api "repos/$REPO/pulls/$PR/files" --paginate --jq '.[].filename')
+          if grep -q '^\.railway/' <<<"$files"; then
+            echo "toca=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "toca=false" >> "$GITHUB_OUTPUT"
+            echo "El pull request no toca .railway/: no hay plan que pedir."
+          fi
+
+      - uses: railwayapp/config@9e17d413dbe219f19d62538d9c06b5dbb5e9abf8 # v1.2.0
+        if: steps.railway.outputs.toca == 'true'
+        with:
+          command: plan
+          railway-token: ${{ secrets.RAILWAY_TOKEN }}
+
+  infra-apply:
+    name: infra-apply
+    # Solo cuando el pull request se fusiona, y solo si era del propio repositorio.
+    if: >-
+      github.event_name == 'pull_request'
+      && github.event.action == 'closed'
+      && github.event.pull_request.merged == true
+      && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      # La acción resuelve de qué pull request fusionado viene el commit para
+      # bajar el plan que ya se revisó. No comenta nada: solo lectura.
+      pull-requests: read
+      actions: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
+          persist-credentials: false
+
+      - name: ¿Toca .railway/?
+        id: railway
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          files=$(gh api "repos/$REPO/pulls/$PR/files" --paginate --jq '.[].filename')
+          if grep -q '^\.railway/' <<<"$files"; then
+            echo "toca=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "toca=false" >> "$GITHUB_OUTPUT"
+            echo "El pull request no tocaba .railway/: no hay nada que aplicar."
+          fi
+
+      - uses: railwayapp/config@9e17d413dbe219f19d62538d9c06b5dbb5e9abf8 # v1.2.0
+        if: steps.railway.outputs.toca == 'true'
+        with:
+          command: apply
+          railway-token: ${{ secrets.RAILWAY_TOKEN }}
