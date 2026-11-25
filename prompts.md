@@ -125,3 +125,14 @@ Commitea y sube la rama para que se actualice el PR #1; no abras otro. Al final,
 ```
 
 **Qué salió:** aplicó los siete puntos, lo commiteó y lo subió al PR #1 (`4718793`). Los resultados no cambiaron: e2e siguió en `44 passed, 3 failed (47)`, y las dos precondiciones ahora fallan con su mensaje; unit pasó a `5 passed, 2 failed (7)`, con el caso nuevo de `in_progress` en verde. Medido: el `GET` devuelve `dueDate` como un instante (`"2026-08-19T00:00:00.000Z"`, `isOverdue: false`), y el `PUT` de la misma tarea, como `"2026-08-19"` con `isOverdue: true`. La segunda revisión adversarial no encontró nada grave, pero señaló que esa medición desmiente el punto 2 de `HALLAZGOS.md` («el endpoint nunca devuelve `true`», pero el `PUT` sí lo devuelve). También señaló que la descripción del PR y este archivo seguían diciendo que `today` va en la query.
+
+## Prompt 5
+
+**Modelo:** Claude Opus 5.5
+**Herramienta:** Claude Code
+
+```
+corrige los puntos 2 y 3 de HALLAZGOS.md con la medición
+```
+
+**Qué salió:** reescribió las dos líneas a partir de lo medido en el PUT frente al GET y lo subió al PR #1 (`d28d019`). El punto 2 ya no dice que el endpoint nunca devuelve `true`: ahora dice que el que nunca lo da es el `GET` (`"2026-08-19T00:00:00.000Z"`, `isOverdue: false`), mientras que el `PUT` sí (`"2026-08-19"`, `isOverdue: true`), y que por eso pasan los tres verdes; la causa sigue presentada como lo que cree. En el punto 3 mantuvo el «mal», añadió que pasar `today` al cuerpo no cambió ningún resultado (44 passed, 3 failed las dos veces) y precisó que la tarea nunca llegó vencida por el `GET`, aunque el `PUT` sí la daba vencida. La línea 2 quedó larga.
