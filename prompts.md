@@ -46,3 +46,28 @@ Esta petición no cierra la unidad de trabajo, así que no abras PR.
 ```
 
 **Qué salió:** escribió `backend/tests/functional/tasks/overdue.spec.ts` con 7 tests, uno por Scenario (4 pasan, 3 fallan): una tarea con fecha del día anterior al de referencia llega con `isOverdue: false`, lo que tumba «Fecha del día anterior» y deja «Darla por hecha la deja de vencer» y «Aplazar resuelve el vencimiento» parados en su comprobación previa, sin llegar a su THEN. No preguntó cómo pasar el día de referencia: lo mandó como `today` en la query tras ver en el validador que lee `request.all()`. Para «creada hace semanas» creó la tarea con `Task.create` en vez de por HTTP.
+
+## Prompt 2
+
+**Modelo:** Claude Opus 5.5
+**Herramienta:** Claude Code
+
+```
+La unidad de trabajo es el Requirement «Cuándo una tarea está vencida» de openspec/specs/tasks/spec.md. Sus Scenarios son el enunciado.
+
+La regla vive en isOverdueOn, en backend/app/models/task.ts. Crea backend/tests/unit/, que hoy no existe, y escribe ahí tests que la llamen directamente, sin servidor y sin base de datos. Que cubran sus bordes:
+- Fecha anterior al día de referencia, y la tarea sin hacer.
+- Fecha exactamente igual al día de referencia.
+- Fecha posterior.
+- Sin fecha.
+- Tarea ya hecha, con la fecha pasada.
+
+Añade un caso más que no sale de la spec: que la regla se comporte igual reciba la fecha como texto o como objeto de fecha.
+
+Restricciones:
+- No toques ni una línea fuera de backend/tests/.
+- No toques la implementación ni la arregles.
+- Ningún test usa la fecha de hoy ni ningún reloj.
+```
+
+**Qué salió:** escribió `backend/tests/unit/tasks/overdue.spec.ts` con 6 tests sobre una `Task` en memoria (4 pasan, 2 fallan). «Una tarea hecha con la fecha pasada» falla porque `isOverdueOn` no mira el estado. El caso texto/objeto falla porque con un `Date` de JS (lo que entrega `pg` para una columna `date`) la fecha del día anterior no sale vencida. Ese segundo defecto explica los 3 fallos funcionales del Prompt 1 y deja ver que allí la tarea hecha pasaba por casualidad.
