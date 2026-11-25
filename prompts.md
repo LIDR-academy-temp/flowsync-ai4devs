@@ -71,3 +71,20 @@ Restricciones:
 ```
 
 **Qué salió:** escribió `backend/tests/unit/tasks/overdue.spec.ts` con 6 tests sobre una `Task` en memoria (4 pasan, 2 fallan). «Una tarea hecha con la fecha pasada» falla porque `isOverdueOn` no mira el estado. El caso texto/objeto falla porque con un `Date` de JS (lo que entrega `pg` para una columna `date`) la fecha del día anterior no sale vencida. Ese segundo defecto explica los 3 fallos funcionales del Prompt 1 y deja ver que allí la tarea hecha pasaba por casualidad.
+
+## Prompt 3
+
+**Modelo:** Claude Opus 5.5
+**Herramienta:** Claude Code
+
+```
+HALLAZGOS.md ya existe en la raíz del repositorio. Rellénalo con tres líneas que sean concretas: una sola línea por punto, con tus palabras y con lo que mediste, no con lo que suponías.
+
+Los puntos 1 y 2 que trae el fichero no son los de este ejercicio. Sustituye su encabezado y su texto por los dos primeros de abajo. El punto 3 se queda como está:
+
+1. Cuántos de tus casos nuevos fallaron y cuántos de los que ya había siguieron en verde, con la cifra que dio la pantalla. La cifra sale de la salida de make test-e2e.
+2. Cuál de tus casos nuevos pasó, si alguno pasó, y por qué crees que pasó. La respuesta no está en ningún sitio: se deduce mirando qué tienen en común los que fallaron.
+3. De qué dudaste, o qué no pudiste comprobar.
+```
+
+**Qué salió:** sustituyó los puntos 1 y 2 de `HALLAZGOS.md`, dejó el 3 y escribió una línea en cada uno. En el 1: 3 de 7 casos nuevos fallaron y los 40 que ya había siguieron en verde («Tests 44 passed, 3 failed (47)»); el 40 lo sacó restando del total los 7 nuevos. En el 2: los 4 que pasaron solo esperan `isOverdue: false`, y los que fallan son los que necesitan un `true`. En el 3: decidió por su cuenta cómo mandar `today`, y no pudo comprobar el THEN de dos Scenarios. La línea 2 quedó larga porque mezcla la deducción con lo medido en los unitarios.
