@@ -22,14 +22,27 @@ Borra el ejemplo de abajo cuando escribas el primero.
 
 ## Prompt 1
 
-**Modelo:** Opus 1M xHigh
+**Modelo:** Claude Opus 5.5
 **Herramienta:** Claude Code
 
 ```
-Este es el ejemplo. Bórralo.
+Lee entero el Requirement «Cuándo una tarea está vencida» de openspec/specs/tasks/spec.md, con todos sus Scenarios. Esos Scenarios son el enunciado: no añadas casos ni quites ninguno.
 
-El prompt va aquí dentro, entero y con sus saltos de línea,
-para que se sepa dónde empieza y dónde acaba.
+Escribe un único archivo de tests funcionales en backend/tests/functional/ que los ejerza entrando por HTTP, igual que entra el cliente que consume este backend. Escribe un test por Scenario y ponle el título del Scenario.
+
+Reglas:
+1. No toques ni una línea fuera de backend/tests/. Si para escribir un test necesitas cambiar algo fuera de ahí, para y dímelo en vez de cambiarlo.
+2. Comprueba lo que sale en la respuesta, no lo que devuelve un método interno. El campo se llama isOverdue y viaja en el cuerpo.
+3. El día de referencia se le pasa a la petición. Ningún test usa la fecha de hoy ni ningún reloj.
+4. Aísla los datos como lo hacen los tests que ya hay en backend/tests/functional/. No inventes otra forma.
+5. No des por hecho ningún identificador: usa el que te devuelva la creación.
+6. El resultado esperado de cada test sale de su Scenario, no del código. Puedes mirar el código para saber cómo se hacen las peticiones, pero no para decidir qué deben responder. Si la spec no dice algo que necesitas, como cómo se pasa el día de referencia, pregúntame antes de decidirlo tú.
+
+Deja los tests tal como salgan. Si alguno falla, no arregles la implementación ni ajustes el test para que pase.
+
+Cuando esté escrito, ejecútalo con make test-e2e desde la raíz y pégame la salida entera, sin resumirla ni recortarla. Después dime, Scenario por Scenario, si su test pasó o falló.
+
+Esta petición no cierra la unidad de trabajo, así que no abras PR.
 ```
 
-**Qué salió:** (opcional, una línea) funcionó a la primera / tuve que insistir / me inventó una ruta que no existe.
+**Qué salió:** escribió `backend/tests/functional/tasks/overdue.spec.ts` con 7 tests, uno por Scenario (4 pasan, 3 fallan): una tarea con fecha del día anterior al de referencia llega con `isOverdue: false`, lo que tumba «Fecha del día anterior» y deja «Darla por hecha la deja de vencer» y «Aplazar resuelve el vencimiento» parados en su comprobación previa, sin llegar a su THEN. No preguntó cómo pasar el día de referencia: lo mandó como `today` en la query tras ver en el validador que lee `request.all()`. Para «creada hace semanas» creó la tarea con `Task.create` en vez de por HTTP.
