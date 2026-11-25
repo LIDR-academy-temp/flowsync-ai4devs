@@ -88,3 +88,40 @@ Los puntos 1 y 2 que trae el fichero no son los de este ejercicio. Sustituye su 
 ```
 
 **Qué salió:** sustituyó los puntos 1 y 2 de `HALLAZGOS.md`, dejó el 3 y escribió una línea en cada uno. En el 1: 3 de 7 casos nuevos fallaron y los 40 que ya había siguieron en verde («Tests 44 passed, 3 failed (47)»); el 40 lo sacó restando del total los 7 nuevos. En el 2: los 4 que pasaron solo esperan `isOverdue: false`, y los que fallan son los que necesitan un `true`. En el 3: decidió por su cuenta cómo mandar `today`, y no pudo comprobar el THEN de dos Scenarios. La línea 2 quedó larga porque mezcla la deducción con lo medido en los unitarios.
+
+## Prompt 4
+
+**Modelo:** Claude Opus 5.5
+**Herramienta:** Claude Code
+
+```
+Aplica los arreglos de la revisión adversarial del PR #1 (rama tests-epo). La unidad de trabajo sigue siendo el Requirement «Cuándo una tarea está vencida» de openspec/specs/tasks/spec.md, y sus Scenarios siguen siendo el enunciado.
+
+Arreglos en los tests:
+1. En backend/tests/functional/tasks/overdue.spec.ts, el PUT /api/v1/tasks/:id/due-date manda today en el cuerpo, junto a dueDate. Así lo manda el cliente (frontend/src/lib/api.ts) y así lo documenta docs/capabilities/tasks/README.md. El GET /api/v1/tasks/:id lo sigue llevando en la query.
+2. En ese mismo archivo, quita de «Sin fecha no se vence nunca» la comprobación de createdAt, porque la spec no pide ese campo en la tarea suelta. La tarea se sigue creando con la fecha de creación fija.
+3. Las comprobaciones previas de «Darla por hecha la deja de vencer» y «Aplazar resuelve el vencimiento» llevan un mensaje que diga que son la precondición, para que en la salida no se confundan con un THEN que falla.
+4. En backend/tests/unit/tasks/overdue.spec.ts, añade un caso: una tarea en in_progress con fecha anterior al día de referencia. La regla dice «su estado no es done», y hoy ningún test prueba in_progress.
+
+No cambies nada más de los tests: ni los títulos, ni el resto de las aserciones, ni el caso de texto frente a objeto de fecha.
+
+Arreglos en HALLAZGOS.md:
+5. Punto 2: «Sin fecha no se vence nunca» no pasa por casualidad, porque pasaría igual con la regla bien hecha. Sepáralo de los otros tres.
+6. Punto 3: la duda sobre cómo mandar today en el PUT no estaba abierta. El README de la capability ya lo decía, y lo decidí sin preguntar y mal. Corrígelo para que lo diga.
+Sigue siendo una sola línea por punto. El punto 1 solo se toca si cambia la cifra.
+
+Comprobación, sin dejar test:
+7. Mide cómo llega dueDate en la respuesta de GET /api/v1/tasks/:id: como AAAA-MM-DD o como un instante. Mídelo con una petición real, no lo deduzcas del código. Si usas un test temporal, bórralo antes de commitear. No lo arregles.
+
+Reglas:
+- No toques ni una línea fuera de backend/tests/ y HALLAZGOS.md.
+- No toques la implementación ni la arregles.
+- Ningún test usa la fecha de hoy ni ningún reloj.
+- Si alguno falla, déjalo fallar. No lo ajustes para que pase.
+
+Cuando esté, ejecuta make test-e2e y make test-unit desde la raíz y pégame las dos salidas enteras. La vez anterior dieron 44 passed, 3 failed en e2e y 4 passed, 2 failed en unit. Dime test por test si cambió algo respecto a esas cifras, sin contar el caso nuevo, y si cambió, por qué.
+
+Commitea y sube la rama para que se actualice el PR #1; no abras otro. Al final, vuelve a pasar el adversarial-reviewer sobre el PR.
+```
+
+**Qué salió:** aplicó los siete puntos, lo commiteó y lo subió al PR #1 (`4718793`). Los resultados no cambiaron: e2e siguió en `44 passed, 3 failed (47)`, y las dos precondiciones ahora fallan con su mensaje; unit pasó a `5 passed, 2 failed (7)`, con el caso nuevo de `in_progress` en verde. Medido: el `GET` devuelve `dueDate` como un instante (`"2026-08-19T00:00:00.000Z"`, `isOverdue: false`), y el `PUT` de la misma tarea, como `"2026-08-19"` con `isOverdue: true`. La segunda revisión adversarial no encontró nada grave, pero señaló que esa medición desmiente el punto 2 de `HALLAZGOS.md` («el endpoint nunca devuelve `true`», pero el `PUT` sí lo devuelve). También señaló que la descripción del PR y este archivo seguían diciendo que `today` va en la query.
