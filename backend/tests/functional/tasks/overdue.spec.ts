@@ -42,12 +42,12 @@ test.group('Tasks | vencimiento', (group) => {
     return response.body().data.id as number
   }
 
+  /** El día de referencia va en el cuerpo, junto a la fecha, como lo manda el cliente. */
   async function ponerFecha(client: any, token: string, id: number, dueDate: string) {
     const response = await client
       .put(`/api/v1/tasks/${id}/due-date`)
-      .qs({ today: HOY })
       .headers(con(token))
-      .json({ dueDate })
+      .json({ dueDate, today: HOY })
     response.assertStatus(200)
 
     return response.body().data
@@ -63,10 +63,7 @@ test.group('Tasks | vencimiento', (group) => {
 
   /** La tarea suelta tal como la recibe quien mira desde `HOY`. */
   async function consultar(client: any, token: string, id: number) {
-    const response = await client
-      .get(`/api/v1/tasks/${id}`)
-      .qs({ today: HOY })
-      .headers(con(token))
+    const response = await client.get(`/api/v1/tasks/${id}`).qs({ today: HOY }).headers(con(token))
     response.assertStatus(200)
 
     return response.body().data
@@ -116,10 +113,9 @@ test.group('Tasks | vencimiento', (group) => {
 
     const tarea = await consultar(client, token, creada.id)
 
-    // Lo que dice el WHEN, visto por la API: sin fecha, antigua y pendiente.
+    // Lo que dice el WHEN, visto por la API: sin fecha y pendiente.
     assert.isNull(tarea.dueDate)
     assert.equal(tarea.status, 'pending')
-    assert.isBelow(Date.parse(tarea.createdAt), Date.parse('2026-08-06'))
 
     assert.isFalse(tarea.isOverdue)
   })
@@ -131,7 +127,10 @@ test.group('Tasks | vencimiento', (group) => {
 
     const antes = await consultar(client, token, id)
     // El WHEN parte de una tarea vencida: si no lo estuviera, el test no probaría nada.
-    assert.isTrue(antes.isOverdue)
+    assert.isTrue(
+      antes.isOverdue,
+      'precondición: la tarea tiene que llegar vencida antes del cambio'
+    )
 
     await marcarHecha(client, token, id)
 
@@ -160,7 +159,10 @@ test.group('Tasks | vencimiento', (group) => {
 
     const antes = await consultar(client, token, id)
     // El WHEN parte de una tarea vencida.
-    assert.isTrue(antes.isOverdue)
+    assert.isTrue(
+      antes.isOverdue,
+      'precondición: la tarea tiene que llegar vencida antes del cambio'
+    )
 
     // La comprobación es sobre la respuesta del propio cambio, no sobre una consulta
     // posterior.

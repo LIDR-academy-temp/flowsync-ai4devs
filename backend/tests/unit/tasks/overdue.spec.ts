@@ -60,6 +60,12 @@ test.group('Task.isOverdueOn', () => {
     assert.isFalse(tarea('done', AYER).isOverdueOn(HOY))
   })
 
+  // No es un scenario: sale de la regla del requisito, «su estado no es `done`». En curso
+  // tampoco es hecha, así que con la fecha pasada vence igual que una pendiente.
+  test('una tarea en curso con la fecha anterior sí está vencida', ({ assert }) => {
+    assert.isTrue(tarea('in_progress', AYER).isOverdueOn(HOY))
+  })
+
   // No sale de la spec: la regla no puede depender de cómo llegue la fecha al modelo.
   test('da lo mismo con la fecha como texto que como objeto de fecha', ({ assert }) => {
     for (const dia of [AYER, HOY, MANANA]) {
