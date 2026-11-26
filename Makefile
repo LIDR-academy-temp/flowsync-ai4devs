@@ -115,6 +115,12 @@ COPIA ?= backups/produccion-2026-10-02.dump
 copia-produccion: migrate ## Carga la copia de producción SEUDONIMIZADA en desarrollo (sustituye sus datos)
 	@bash $(BACKEND)/database/copia-produccion.sh "$(COPIA)"
 
+otel-up: ## Levanta el destino local de las trazas (recolector de OpenTelemetry)
+	@docker compose up -d observability
+
+otel-down: ## Para el destino local de las trazas
+	@docker compose stop observability
+
 test: migrate ## Corre los tests del backend contra la base de pruebas
 	@cd $(BACKEND) && npm test
 
