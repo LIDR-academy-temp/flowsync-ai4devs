@@ -39,6 +39,8 @@ Cuatro cosas. Compruébalas **antes de clonar el proyecto**:
 
 No hace falta instalar dependencias ni levantar la aplicación: el ejercicio trabaja sobre el historial y sobre la configuración del agente.
 
+> 🔌 El proyecto declara servidores externos para el agente (MCP, *Model Context Protocol*). Si al abrirlo te pide aprobarlos o conectar una cuenta, **no hace falta**: recházalos. Es normal que alguno no conecte.
+
 ### 2. Forkea y clona el proyecto
 
 Trabajarás sobre **tu propio fork**, porque no tienes permisos de escritura en el repositorio del curso.
@@ -138,8 +140,16 @@ En la raíz, crea `HALLAZGOS.md` o vacíalo si ya existe. Escribe tres líneas:
 
 1. Trabaja en la rama **`adopcion-<tus-iniciales>`**.
 2. **Guarda todos tus prompts en `prompts.md`, en la raíz del repositorio.** El archivo ya trae una plantilla: conserva su nombre y su ubicación porque la herramienta de revisión los usa. Cada prompt en su bloque de código, con el modelo y la herramienta.
-3. El agente tiene prohibido empujar por la regla que acabas de escribir, así que **el `push` lo haces tú en tu terminal**: `git push -u origin adopcion-<tus-iniciales>`.
-4. Abre un **pull request desde tu fork contra el repositorio del curso** (`github.com/LIDR-academy-temp/flowsync-ai4devs`) y comprueba que GitHub haya seleccionado el repositorio del curso como destino, no tu fork. Tiene que incluir `docs/adopcion/linea-de-partida.md`, `docs/adopcion/decisiones-de-gobierno.md`, `.claude/settings.json`, `HALLAZGOS.md` y `prompts.md`.
+3. **Haz el commit** de tus archivos y comprueba que no queda nada fuera:
+
+```bash
+git add docs/adopcion .claude/settings.json CLAUDE.md HALLAZGOS.md prompts.md
+git commit -m "docs(adopcion): linea de partida y decisiones de gobierno"
+git status
+```
+
+4. El agente tiene prohibido empujar por la regla que acabas de escribir, así que **el `push` lo haces tú en tu terminal**: `git push -u origin adopcion-<tus-iniciales>`.
+5. Abre un **pull request desde tu fork contra el repositorio del curso** (`github.com/LIDR-academy-temp/flowsync-ai4devs`) y comprueba que GitHub haya seleccionado el repositorio del curso como destino, no tu fork. Tiene que incluir `docs/adopcion/linea-de-partida.md`, `docs/adopcion/decisiones-de-gobierno.md`, `.claude/settings.json`, `CLAUDE.md`, `HALLAZGOS.md` y `prompts.md`.
 
 > 🔒 **No pegues datos de tu empresa en ningún archivo de la entrega.** El pull request es público.
 
